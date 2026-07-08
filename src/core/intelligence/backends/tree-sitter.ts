@@ -520,6 +520,12 @@ interface TreeCacheEntry {
 export class TreeSitterBackend implements IntelligenceBackend {
   readonly name = "tree-sitter";
   readonly tier = 3;
+  /** Larger files are almost always minified/generated — not worth outlining,
+   *  and a synchronous WASM parse of them can stall the thread for seconds. */
+  private static readonly MAX_FILE_BYTES = 1024 * 1024;
+  /** parse() is synchronous WASM — a Promise.race timeout can never preempt it.
+   *  Cancellation must go through tree-sitter's native progress callback. */
+  private static readonly PARSE_BUDGET_MS = 5_000;
   private parser: TSParser | null = null;
   private languages = new Map<string, TSLanguage>();
   private failedLanguages = new Set<string>();
@@ -605,110 +611,111 @@ export class TreeSitterBackend implements IntelligenceBackend {
     const tree = await this.parseFile(file);
     if (!tree) return null;
 
-    const language = this.detectLang(file);
-    const tsLang = this.languages.get(this.grammarKeyForFile(file));
-    if (!tsLang) {
-      tree.delete();
-      return null;
-    }
-
-    const importQueryStr =
-      language === "typescript" || language === "javascript"
-        ? `(import_statement source: (string) @source) @import`
-        : language === "python"
-          ? `(import_statement) @import (import_from_statement module_name: (dotted_name) @source) @import`
-          : language === "go"
-            ? `(import_declaration) @import`
-            : language === "rust"
-              ? `(use_declaration) @import`
-              : null;
-
-    if (!importQueryStr) {
-      tree.delete();
-      return null;
-    }
-
-    const imports: ImportInfo[] = [];
-    const tsQuery = createQuery(tsLang, importQueryStr);
-
     try {
-      const matches = tsQuery.matches(tree.rootNode);
-
-      for (const match of matches) {
-        const importNode = match.captures.find((c: TSQueryCapture) => c.name === "import");
-        const sourceNode = match.captures.find((c: TSQueryCapture) => c.name === "source");
-
-        if (!importNode) continue;
-
-        const node = importNode.node;
-        const source = sourceNode ? sourceNode.node.text.replace(/['"]/g, "") : node.text;
-        const specifiers = extractImportSpecifiers(node, language);
-
-        imports.push({
-          source,
-          specifiers,
-          isDefault:
-            specifiers.length > 0 &&
-            node.text.includes("import ") &&
-            !node.text.includes("{") &&
-            !node.text.includes("*"),
-          isNamespace: node.text.includes("* as "),
-          location: {
-            file: resolve(file),
-            line: node.startPosition.row + 1,
-            column: node.startPosition.column + 1,
-            endLine: node.endPosition.row + 1,
-          },
-        });
+      const language = this.detectLang(file);
+      const tsLang = this.languages.get(this.grammarKeyForFile(file));
+      if (!tsLang) {
+        return null;
       }
-    } finally {
-      tsQuery.delete();
-    }
 
-    // Also capture re-exports: export { X } from './y'
-    if (language === "typescript" || language === "javascript") {
-      const reExportQuery = createQuery(tsLang, `(export_statement) @export`);
+      const importQueryStr =
+        language === "typescript" || language === "javascript"
+          ? `(import_statement source: (string) @source) @import`
+          : language === "python"
+            ? `(import_statement) @import (import_from_statement module_name: (dotted_name) @source) @import`
+            : language === "go"
+              ? `(import_declaration) @import`
+              : language === "rust"
+                ? `(use_declaration) @import`
+                : null;
+
+      if (!importQueryStr) {
+        return null;
+      }
+
+      const imports: ImportInfo[] = [];
+      const tsQuery = createQuery(tsLang, importQueryStr);
+
       try {
-        for (const match of reExportQuery.matches(tree.rootNode)) {
-          const cap = match.captures.find((c: TSQueryCapture) => c.name === "export");
-          if (!cap) continue;
-          const node = cap.node;
-          const source = node.childForFieldName("source");
-          if (!source) continue;
-          const clause = node.namedChildren.find(
-            (c: TSNode | null) => c != null && c.type === "export_clause",
-          );
-          if (!clause) continue;
-          const specifiers: string[] = [];
-          for (let ci = 0; ci < clause.namedChildCount; ci++) {
-            const spec = clause.namedChild(ci);
-            if (spec?.type === "export_specifier") {
-              const name = spec.childForFieldName("name");
-              if (name) specifiers.push(name.text);
-            }
-          }
-          if (specifiers.length > 0) {
-            imports.push({
-              source: source.text.replace(/['"]/g, ""),
-              specifiers,
-              isDefault: false,
-              isNamespace: false,
-              location: {
-                file: resolve(file),
-                line: node.startPosition.row + 1,
-                column: node.startPosition.column + 1,
-                endLine: node.endPosition.row + 1,
-              },
-            });
-          }
+        const matches = tsQuery.matches(tree.rootNode);
+
+        for (const match of matches) {
+          const importNode = match.captures.find((c: TSQueryCapture) => c.name === "import");
+          const sourceNode = match.captures.find((c: TSQueryCapture) => c.name === "source");
+
+          if (!importNode) continue;
+
+          const node = importNode.node;
+          const source = sourceNode ? sourceNode.node.text.replace(/['"]/g, "") : node.text;
+          const specifiers = extractImportSpecifiers(node, language);
+
+          imports.push({
+            source,
+            specifiers,
+            isDefault:
+              specifiers.length > 0 &&
+              node.text.includes("import ") &&
+              !node.text.includes("{") &&
+              !node.text.includes("*"),
+            isNamespace: node.text.includes("* as "),
+            location: {
+              file: resolve(file),
+              line: node.startPosition.row + 1,
+              column: node.startPosition.column + 1,
+              endLine: node.endPosition.row + 1,
+            },
+          });
         }
       } finally {
-        reExportQuery.delete();
+        tsQuery.delete();
       }
-    }
 
-    tree.delete();
-    return imports;
+      // Also capture re-exports: export { X } from './y'
+      if (language === "typescript" || language === "javascript") {
+        const reExportQuery = createQuery(tsLang, `(export_statement) @export`);
+        try {
+          for (const match of reExportQuery.matches(tree.rootNode)) {
+            const cap = match.captures.find((c: TSQueryCapture) => c.name === "export");
+            if (!cap) continue;
+            const node = cap.node;
+            const source = node.childForFieldName("source");
+            if (!source) continue;
+            const clause = node.namedChildren.find(
+              (c: TSNode | null) => c != null && c.type === "export_clause",
+            );
+            if (!clause) continue;
+            const specifiers: string[] = [];
+            for (let ci = 0; ci < clause.namedChildCount; ci++) {
+              const spec = clause.namedChild(ci);
+              if (spec?.type === "export_specifier") {
+                const name = spec.childForFieldName("name");
+                if (name) specifiers.push(name.text);
+              }
+            }
+            if (specifiers.length > 0) {
+              imports.push({
+                source: source.text.replace(/['"]/g, ""),
+                specifiers,
+                isDefault: false,
+                isNamespace: false,
+                location: {
+                  file: resolve(file),
+                  line: node.startPosition.row + 1,
+                  column: node.startPosition.column + 1,
+                  endLine: node.endPosition.row + 1,
+                },
+              });
+            }
+          }
+        } finally {
+          reExportQuery.delete();
+        }
+      }
+
+      return imports;
+    } finally {
+      tree.delete();
+    }
   }
 
   async findExports(file: string): Promise<ExportInfo[] | null> {
@@ -832,127 +839,77 @@ export class TreeSitterBackend implements IntelligenceBackend {
     const exports: ExportInfo[] = [];
     const absFile = resolve(file);
 
-    // Extract symbols using the main query
-    const mainQueryStr = QUERIES[language];
-    if (mainQueryStr) {
-      const mainQuery = createQuery(tsLang, mainQueryStr);
-      try {
-        const matches = mainQuery.matches(tree.rootNode);
-        for (const match of matches) {
-          const nameCapture = match.captures.find((c: TSQueryCapture) => c.name === "name");
-          const sourceCapture = match.captures.find((c: TSQueryCapture) => c.name === "source");
-          const patternCapture = match.captures.find(
-            (c: TSQueryCapture) => c.name !== "name" && c.name !== "source",
-          );
-
-          // Handle imports
-          if (patternCapture?.name === "import") {
-            const node = patternCapture.node;
-            const source = sourceCapture ? sourceCapture.node.text.replace(/['"]/g, "") : node.text;
-            const specifiers = extractImportSpecifiers(node, language);
-            const isDefault =
-              specifiers.length > 0 &&
-              node.text.includes("import ") &&
-              !node.text.includes("{") &&
-              !node.text.includes("*");
-            const isNamespace = node.text.includes("* as ");
-            imports.push({
-              source,
-              specifiers,
-              isDefault,
-              isNamespace,
-              location: {
-                file: absFile,
-                line: node.startPosition.row + 1,
-                column: node.startPosition.column + 1,
-                endLine: node.endPosition.row + 1,
-              },
-            });
-            continue;
-          }
-
-          // Handle exports
-          if (patternCapture?.name === "export") {
-            const node = patternCapture.node;
-            const isDefault = node.text.includes("export default");
-            const decl = node.namedChildren.find(
-              (c: TSNode | null) =>
-                c != null &&
-                (c.type === "function_declaration" ||
-                  c.type === "class_declaration" ||
-                  c.type === "interface_declaration" ||
-                  c.type === "type_alias_declaration" ||
-                  c.type === "lexical_declaration"),
+    try {
+      // Extract symbols using the main query
+      const mainQueryStr = QUERIES[language];
+      if (mainQueryStr) {
+        const mainQuery = createQuery(tsLang, mainQueryStr);
+        try {
+          const matches = mainQuery.matches(tree.rootNode);
+          for (const match of matches) {
+            const nameCapture = match.captures.find((c: TSQueryCapture) => c.name === "name");
+            const sourceCapture = match.captures.find((c: TSQueryCapture) => c.name === "source");
+            const patternCapture = match.captures.find(
+              (c: TSQueryCapture) => c.name !== "name" && c.name !== "source",
             );
-            if (decl) {
-              const expNameNode =
-                decl.childForFieldName("name") ??
-                decl.namedChildren
-                  .find((c: TSNode | null) => c != null && c.type === "variable_declarator")
-                  ?.childForFieldName("name");
-              if (expNameNode) {
-                let kind: SymbolKind = "variable";
-                if (decl.type.includes("function")) kind = "function";
-                else if (decl.type.includes("class")) kind = "class";
-                else if (decl.type.includes("interface")) kind = "interface";
-                else if (decl.type.includes("type")) kind = "type";
-                exports.push({
-                  name: expNameNode.text,
-                  isDefault,
-                  kind,
-                  location: {
-                    file: absFile,
-                    line: node.startPosition.row + 1,
-                    column: node.startPosition.column + 1,
-                    endLine: node.endPosition.row + 1,
-                  },
-                });
-              }
-            } else {
-              // Handle re-exports: export { X, Y } or export { X } from './y'
-              const clause = node.namedChildren.find(
-                (c: TSNode | null) => c != null && c.type === "export_clause",
+
+            // Handle imports
+            if (patternCapture?.name === "import") {
+              const node = patternCapture.node;
+              const source = sourceCapture
+                ? sourceCapture.node.text.replace(/['"]/g, "")
+                : node.text;
+              const specifiers = extractImportSpecifiers(node, language);
+              const isDefault =
+                specifiers.length > 0 &&
+                node.text.includes("import ") &&
+                !node.text.includes("{") &&
+                !node.text.includes("*");
+              const isNamespace = node.text.includes("* as ");
+              imports.push({
+                source,
+                specifiers,
+                isDefault,
+                isNamespace,
+                location: {
+                  file: absFile,
+                  line: node.startPosition.row + 1,
+                  column: node.startPosition.column + 1,
+                  endLine: node.endPosition.row + 1,
+                },
+              });
+              continue;
+            }
+
+            // Handle exports
+            if (patternCapture?.name === "export") {
+              const node = patternCapture.node;
+              const isDefault = node.text.includes("export default");
+              const decl = node.namedChildren.find(
+                (c: TSNode | null) =>
+                  c != null &&
+                  (c.type === "function_declaration" ||
+                    c.type === "class_declaration" ||
+                    c.type === "interface_declaration" ||
+                    c.type === "type_alias_declaration" ||
+                    c.type === "lexical_declaration"),
               );
-              if (clause) {
-                const reExportSource = node.childForFieldName("source");
-                const source = reExportSource
-                  ? reExportSource.text.replace(/['"]/g, "")
-                  : undefined;
-                const specNames: string[] = [];
-                const origNames: string[] = [];
-                for (let ci = 0; ci < clause.namedChildCount; ci++) {
-                  const spec = clause.namedChild(ci);
-                  if (spec?.type === "export_specifier") {
-                    const alias = spec.childForFieldName("alias");
-                    const name = spec.childForFieldName("name");
-                    // Export name is the alias (public-facing) or the original name
-                    const exportName = alias ?? name;
-                    if (exportName) {
-                      specNames.push(exportName.text);
-                      exports.push({
-                        name: exportName.text,
-                        isDefault: false,
-                        kind: "variable",
-                        location: {
-                          file: absFile,
-                          line: node.startPosition.row + 1,
-                          column: node.startPosition.column + 1,
-                          endLine: node.endPosition.row + 1,
-                        },
-                      });
-                    }
-                    // Track original name for import refs back to the source module
-                    if (name) origNames.push(name.text);
-                  }
-                }
-                // Re-exports with a source are cross-file references (treat as imports)
-                // Use original names (not aliases) so refs match the source module's symbols
-                if (source && origNames.length > 0) {
-                  imports.push({
-                    source,
-                    specifiers: origNames,
-                    isDefault: false,
-                    isNamespace: false,
+              if (decl) {
+                const expNameNode =
+                  decl.childForFieldName("name") ??
+                  decl.namedChildren
+                    .find((c: TSNode | null) => c != null && c.type === "variable_declarator")
+                    ?.childForFieldName("name");
+                if (expNameNode) {
+                  let kind: SymbolKind = "variable";
+                  if (decl.type.includes("function")) kind = "function";
+                  else if (decl.type.includes("class")) kind = "class";
+                  else if (decl.type.includes("interface")) kind = "interface";
+                  else if (decl.type.includes("type")) kind = "type";
+                  exports.push({
+                    name: expNameNode.text,
+                    isDefault,
+                    kind,
                     location: {
                       file: absFile,
                       line: node.startPosition.row + 1,
@@ -962,124 +919,178 @@ export class TreeSitterBackend implements IntelligenceBackend {
                   });
                 }
               } else {
-                // Handle export * from './module' (wildcard re-exports)
-                const hasStar =
-                  node.namedChildren.some(
-                    (c: TSNode | null) => c != null && c.type === "namespace_export",
-                  ) || node.text.includes("export *");
-                const reExportSource = node.childForFieldName("source");
-                if (hasStar && reExportSource) {
-                  const source = reExportSource.text.replace(/['"]/g, "");
-                  imports.push({
-                    source,
-                    specifiers: ["*"],
-                    isDefault: false,
-                    isNamespace: true,
-                    location: {
-                      file: absFile,
-                      line: node.startPosition.row + 1,
-                      column: node.startPosition.column + 1,
-                      endLine: node.endPosition.row + 1,
-                    },
-                  });
+                // Handle re-exports: export { X, Y } or export { X } from './y'
+                const clause = node.namedChildren.find(
+                  (c: TSNode | null) => c != null && c.type === "export_clause",
+                );
+                if (clause) {
+                  const reExportSource = node.childForFieldName("source");
+                  const source = reExportSource
+                    ? reExportSource.text.replace(/['"]/g, "")
+                    : undefined;
+                  const specNames: string[] = [];
+                  const origNames: string[] = [];
+                  for (let ci = 0; ci < clause.namedChildCount; ci++) {
+                    const spec = clause.namedChild(ci);
+                    if (spec?.type === "export_specifier") {
+                      const alias = spec.childForFieldName("alias");
+                      const name = spec.childForFieldName("name");
+                      // Export name is the alias (public-facing) or the original name
+                      const exportName = alias ?? name;
+                      if (exportName) {
+                        specNames.push(exportName.text);
+                        exports.push({
+                          name: exportName.text,
+                          isDefault: false,
+                          kind: "variable",
+                          location: {
+                            file: absFile,
+                            line: node.startPosition.row + 1,
+                            column: node.startPosition.column + 1,
+                            endLine: node.endPosition.row + 1,
+                          },
+                        });
+                      }
+                      // Track original name for import refs back to the source module
+                      if (name) origNames.push(name.text);
+                    }
+                  }
+                  // Re-exports with a source are cross-file references (treat as imports)
+                  // Use original names (not aliases) so refs match the source module's symbols
+                  if (source && origNames.length > 0) {
+                    imports.push({
+                      source,
+                      specifiers: origNames,
+                      isDefault: false,
+                      isNamespace: false,
+                      location: {
+                        file: absFile,
+                        line: node.startPosition.row + 1,
+                        column: node.startPosition.column + 1,
+                        endLine: node.endPosition.row + 1,
+                      },
+                    });
+                  }
+                } else {
+                  // Handle export * from './module' (wildcard re-exports)
+                  const hasStar =
+                    node.namedChildren.some(
+                      (c: TSNode | null) => c != null && c.type === "namespace_export",
+                    ) || node.text.includes("export *");
+                  const reExportSource = node.childForFieldName("source");
+                  if (hasStar && reExportSource) {
+                    const source = reExportSource.text.replace(/['"]/g, "");
+                    imports.push({
+                      source,
+                      specifiers: ["*"],
+                      isDefault: false,
+                      isNamespace: true,
+                      location: {
+                        file: absFile,
+                        line: node.startPosition.row + 1,
+                        column: node.startPosition.column + 1,
+                        endLine: node.endPosition.row + 1,
+                      },
+                    });
+                  }
                 }
               }
+              continue;
             }
-            continue;
-          }
 
-          // Handle symbols
-          if (nameCapture) {
-            const kind = this.captureToKind(patternCapture?.name ?? "unknown");
-            // Use the declaration node (pattern capture) for endLine, not the name node
-            const declNode = patternCapture?.node ?? nameCapture.node.parent ?? nameCapture.node;
-            symbols.push({
-              name: nameCapture.node.text,
-              kind,
-              location: {
-                file: absFile,
-                line: nameCapture.node.startPosition.row + 1,
-                column: nameCapture.node.startPosition.column + 1,
-                endLine: declNode.endPosition.row + 1,
-              },
-            });
+            // Handle symbols
+            if (nameCapture) {
+              const kind = this.captureToKind(patternCapture?.name ?? "unknown");
+              // Use the declaration node (pattern capture) for endLine, not the name node
+              const declNode = patternCapture?.node ?? nameCapture.node.parent ?? nameCapture.node;
+              symbols.push({
+                name: nameCapture.node.text,
+                kind,
+                location: {
+                  file: absFile,
+                  line: nameCapture.node.startPosition.row + 1,
+                  column: nameCapture.node.startPosition.column + 1,
+                  endLine: declNode.endPosition.row + 1,
+                },
+              });
+            }
           }
+        } finally {
+          mainQuery.delete();
         }
-      } finally {
-        mainQuery.delete();
       }
-    }
 
-    // Capture dynamic import() expressions for TS/JS
-    // e.g. `const { start } = await import("./index.js")`
-    if (language === "typescript" || language === "javascript") {
-      const dynamicImportQuery = createQuery(
-        tsLang,
-        `(call_expression function: (import) arguments: (arguments (string) @source)) @dynamic_import`,
-      );
-      try {
-        for (const match of dynamicImportQuery.matches(tree.rootNode)) {
-          const sourceCapture = match.captures.find((c: TSQueryCapture) => c.name === "source");
-          if (!sourceCapture) continue;
-          const source = sourceCapture.node.text.replace(/['"`]/g, "");
-          if (!source) continue;
+      // Capture dynamic import() expressions for TS/JS
+      // e.g. `const { start } = await import("./index.js")`
+      if (language === "typescript" || language === "javascript") {
+        const dynamicImportQuery = createQuery(
+          tsLang,
+          `(call_expression function: (import) arguments: (arguments (string) @source)) @dynamic_import`,
+        );
+        try {
+          for (const match of dynamicImportQuery.matches(tree.rootNode)) {
+            const sourceCapture = match.captures.find((c: TSQueryCapture) => c.name === "source");
+            if (!sourceCapture) continue;
+            const source = sourceCapture.node.text.replace(/['"`]/g, "");
+            if (!source) continue;
 
-          // Extract destructured names from the variable declaration context
-          // e.g. `const { start } = await import("./index.js")`
-          const importNode = match.captures.find(
-            (c: TSQueryCapture) => c.name === "dynamic_import",
-          );
-          const specifiers: string[] = [];
-          if (importNode) {
-            // Walk up to find destructuring pattern
-            let current: TSNode | null = importNode.node.parent;
-            // Walk up through await_expression, assignment, etc.
-            while (
-              current &&
-              current.type !== "variable_declarator" &&
-              current.type !== "assignment_expression"
-            ) {
-              current = current.parent;
-            }
-            if (current) {
-              const pattern =
-                current.childForFieldName("name") ?? current.childForFieldName("left");
-              if (pattern?.type === "object_pattern") {
-                for (let ci = 0; ci < pattern.namedChildCount; ci++) {
-                  const child = pattern.namedChild(ci);
-                  if (child?.type === "shorthand_property_identifier_pattern") {
-                    specifiers.push(child.text);
-                  } else if (child?.type === "pair_pattern") {
-                    const key = child.childForFieldName("key");
-                    if (key) specifiers.push(key.text);
+            // Extract destructured names from the variable declaration context
+            // e.g. `const { start } = await import("./index.js")`
+            const importNode = match.captures.find(
+              (c: TSQueryCapture) => c.name === "dynamic_import",
+            );
+            const specifiers: string[] = [];
+            if (importNode) {
+              // Walk up to find destructuring pattern
+              let current: TSNode | null = importNode.node.parent;
+              // Walk up through await_expression, assignment, etc.
+              while (
+                current &&
+                current.type !== "variable_declarator" &&
+                current.type !== "assignment_expression"
+              ) {
+                current = current.parent;
+              }
+              if (current) {
+                const pattern =
+                  current.childForFieldName("name") ?? current.childForFieldName("left");
+                if (pattern?.type === "object_pattern") {
+                  for (let ci = 0; ci < pattern.namedChildCount; ci++) {
+                    const child = pattern.namedChild(ci);
+                    if (child?.type === "shorthand_property_identifier_pattern") {
+                      specifiers.push(child.text);
+                    } else if (child?.type === "pair_pattern") {
+                      const key = child.childForFieldName("key");
+                      if (key) specifiers.push(key.text);
+                    }
                   }
                 }
               }
             }
+
+            // If we couldn't extract specifiers, use wildcard
+            if (specifiers.length === 0) specifiers.push("*");
+
+            imports.push({
+              source,
+              specifiers,
+              isDefault: false,
+              isNamespace: specifiers.length === 1 && specifiers[0] === "*",
+              location: {
+                file: absFile,
+                line: sourceCapture.node.startPosition.row + 1,
+                column: sourceCapture.node.startPosition.column + 1,
+                endLine: sourceCapture.node.endPosition.row + 1,
+              },
+            });
           }
-
-          // If we couldn't extract specifiers, use wildcard
-          if (specifiers.length === 0) specifiers.push("*");
-
-          imports.push({
-            source,
-            specifiers,
-            isDefault: false,
-            isNamespace: specifiers.length === 1 && specifiers[0] === "*",
-            location: {
-              file: absFile,
-              line: sourceCapture.node.startPosition.row + 1,
-              column: sourceCapture.node.startPosition.column + 1,
-              endLine: sourceCapture.node.endPosition.row + 1,
-            },
-          });
+        } finally {
+          dynamicImportQuery.delete();
         }
-      } finally {
-        dynamicImportQuery.delete();
       }
+    } finally {
+      tree.delete();
     }
-
-    tree.delete();
 
     // CommonJS: extract exports from module.exports = { ... } for JS files
     if ((language === "javascript" || language === "typescript") && exports.length === 0) {
@@ -1214,6 +1225,8 @@ export class TreeSitterBackend implements IntelligenceBackend {
 
   private static readonly MIN_HASH_LINES = 12;
 
+  private static readonly MAX_HASHABLE_NODES = 200;
+
   private static readonly HASHABLE_KEYWORDS = [
     "function",
     "method",
@@ -1287,6 +1300,7 @@ export class TreeSitterBackend implements IntelligenceBackend {
     depth: number,
   ): void {
     if (depth > 10) return;
+    if (results.length >= TreeSitterBackend.MAX_HASHABLE_NODES) return;
 
     if (TreeSitterBackend.isHashableType(node.type)) {
       const lines = node.endPosition.row - node.startPosition.row + 1;
@@ -1445,7 +1459,7 @@ export class TreeSitterBackend implements IntelligenceBackend {
 
     const absPath = resolve(file);
     const content = await this.readFileContent(absPath);
-    if (!content) return null;
+    if (!content || content.length > TreeSitterBackend.MAX_FILE_BYTES) return null;
 
     // Check tree cache — reuse if content hasn't changed
     const cached = this.treeCache.get(absPath);
@@ -1459,9 +1473,12 @@ export class TreeSitterBackend implements IntelligenceBackend {
     if (!lang) return null;
 
     this.parser.setLanguage(lang);
+    const deadline = performance.now() + TreeSitterBackend.PARSE_BUDGET_MS;
     let tree: TSTree | null;
     try {
-      tree = this.parser.parse(content);
+      tree = this.parser.parse(content, null, {
+        progressCallback: () => performance.now() > deadline,
+      });
     } catch {
       // WASM grammar broken at runtime (e.g. ABI mismatch) — blacklist it
       this.failedLanguages.add(grammarKey);

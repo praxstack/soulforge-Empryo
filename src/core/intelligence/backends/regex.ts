@@ -14,6 +14,9 @@ import {
   type SymbolKind,
 } from "../types.js";
 
+// Larger files are almost always minified/generated — skip line-by-line scanning
+const MAX_FILE_BYTES = 1024 * 1024;
+
 interface LanguagePatterns {
   function: RegExp;
   class: RegExp;
@@ -84,13 +87,54 @@ function getPatternsForLanguage(language: Language): LanguagePatterns | null {
   }
 }
 
-function extractBraceScope(lines: string[], startIdx: number): { endIdx: number } {
+function extractBraceScope(
+  lines: string[],
+  startIdx: number,
+  language: Language,
+): { endIdx: number } {
+  // In Rust a lone ' starts a lifetime, not a string — only closed char
+  // literals ('x', '\n') are consumed, so `fn f<'a>(..)` doesn't swallow braces.
+  const singleQuoteIsString = language !== "rust";
   let depth = 0;
   let foundOpen = false;
+  let inBlockComment = false;
+  let stringChar: '"' | "'" | "`" | null = null;
 
   for (let i = startIdx; i < lines.length; i++) {
     const line = lines[i] ?? "";
-    for (const ch of line) {
+    // " and ' don't span lines — reset so an unterminated string can't
+    // swallow the rest of the file. Backticks (template/raw strings) do span.
+    if (stringChar === '"' || stringChar === "'") stringChar = null;
+
+    for (let j = 0; j < line.length; j++) {
+      const ch = line[j];
+      if (inBlockComment) {
+        if (ch === "*" && line[j + 1] === "/") {
+          inBlockComment = false;
+          j++;
+        }
+        continue;
+      }
+      if (stringChar) {
+        if (ch === "\\") j++;
+        else if (ch === stringChar) stringChar = null;
+        continue;
+      }
+      if (ch === "/" && line[j + 1] === "/") break;
+      if (ch === "/" && line[j + 1] === "*") {
+        inBlockComment = true;
+        j++;
+        continue;
+      }
+      if (ch === '"' || ch === "`" || (ch === "'" && singleQuoteIsString)) {
+        stringChar = ch;
+        continue;
+      }
+      if (ch === "'") {
+        if (line[j + 1] === "\\" && line[j + 3] === "'") j += 3;
+        else if (line[j + 2] === "'") j += 2;
+        continue;
+      }
       if (ch === "{") {
         depth++;
         foundOpen = true;
@@ -130,7 +174,7 @@ function extractScope(lines: string[], startIdx: number, language: Language): { 
   if (language === "python") {
     return extractIndentScope(lines, startIdx);
   }
-  return extractBraceScope(lines, startIdx);
+  return extractBraceScope(lines, startIdx, language);
 }
 
 /**
@@ -157,7 +201,7 @@ export class RegexBackend implements IntelligenceBackend {
 
   async findSymbols(file: string, query?: string): Promise<SymbolInfo[] | null> {
     const content = await this.readFile(file);
-    if (!content) return null;
+    if (!content || content.length > MAX_FILE_BYTES) return null;
 
     const language = this.detectLang(file);
     const patterns = getPatternsForLanguage(language);
@@ -197,7 +241,7 @@ export class RegexBackend implements IntelligenceBackend {
 
   async findImports(file: string): Promise<ImportInfo[] | null> {
     const content = await this.readFile(file);
-    if (!content) return null;
+    if (!content || content.length > MAX_FILE_BYTES) return null;
 
     const language = this.detectLang(file);
     const patterns = getPatternsForLanguage(language);
@@ -295,7 +339,7 @@ export class RegexBackend implements IntelligenceBackend {
 
   async findExports(file: string): Promise<ExportInfo[] | null> {
     const content = await this.readFile(file);
-    if (!content) return null;
+    if (!content || content.length > MAX_FILE_BYTES) return null;
 
     const language = this.detectLang(file);
     const patterns = getPatternsForLanguage(language);

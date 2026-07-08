@@ -59,6 +59,19 @@ const PROJECT_FILE_TO_LANGUAGE: Record<string, Language> = {
  * then selects the highest-tier backend that supports the operation.
  */
 export class CodeIntelligenceRouter {
+  private static readonly OP_TIMEOUT_MS = 10_000;
+  /** Project-wide operations (whole-program analysis, e.g. jdtls
+   *  findImplementation) legitimately exceed the default budget. */
+  private static readonly SLOW_OP_TIMEOUT_MS = 30_000;
+  private static readonly SLOW_OPS = new Set<keyof IntelligenceBackend>([
+    "findImplementation",
+    "findReferences",
+    "findWorkspaceSymbols",
+    "getDiagnostics",
+    "getFileRenameEdits",
+    "rename",
+  ]);
+
   private backends: IntelligenceBackend[] = [];
   private initialized = new Set<string>();
   private cwd: string;
@@ -158,6 +171,10 @@ export class CodeIntelligenceRouter {
     const candidates =
       preference !== "auto" ? this.backends.filter((b) => b.name === preference) : this.backends;
 
+    const timeoutMs = CodeIntelligenceRouter.SLOW_OPS.has(operation)
+      ? CodeIntelligenceRouter.SLOW_OP_TIMEOUT_MS
+      : CodeIntelligenceRouter.OP_TIMEOUT_MS;
+
     for (const backend of candidates) {
       if (!backend.supportsLanguage(language) || typeof backend[operation] !== "function") {
         continue;
@@ -169,7 +186,7 @@ export class CodeIntelligenceRouter {
 
         const result = await Promise.race([
           fn(backend),
-          new Promise<null>((resolve) => setTimeout(resolve, 30_000, null)),
+          new Promise<null>((resolve) => setTimeout(resolve, timeoutMs, null)),
         ]);
         if (result !== null) return { value: result, backend: backend.name };
       } catch {
@@ -277,7 +294,7 @@ export class CodeIntelligenceRouter {
    * Call at startup so LSP servers are warm before the first tool call.
    */
   async warmup(): Promise<void> {
-    const languages = this.detectAllLanguages();
+    const languages = await this.detectAllLanguages();
     if (languages.length === 0) return;
 
     // Initialize backends for the primary language
@@ -299,7 +316,7 @@ export class CodeIntelligenceRouter {
       const warmupPromises: Promise<void>[] = [];
       for (const lang of languages) {
         if (!lsp.supportsLanguage(lang)) continue;
-        const probeFile = this.findProbeFile(lang);
+        const probeFile = await this.findProbeFile(lang);
         if (!probeFile) continue;
         warmupPromises.push(
           Promise.race([
@@ -312,8 +329,15 @@ export class CodeIntelligenceRouter {
     }
   }
 
+  /** Yield to the event loop so long synchronous directory scans don't starve rendering/RPC. */
+  private static yieldToEventLoop(): Promise<void> {
+    return new Promise((resolve) => setImmediate(resolve));
+  }
+
+  private static readonly YIELD_EVERY_DIRS = 20;
+
   /** Detect all languages present in the project (config files + file scan). */
-  private detectAllLanguages(): Language[] {
+  private async detectAllLanguages(): Promise<Language[]> {
     const found: Language[] = [];
     const seen = new Set<Language>();
 
@@ -361,6 +385,9 @@ export class CodeIntelligenceRouter {
       const item = queue.shift();
       if (!item) break;
       visited++;
+      if (visited % CodeIntelligenceRouter.YIELD_EVERY_DIRS === 0) {
+        await CodeIntelligenceRouter.yieldToEventLoop();
+      }
       try {
         const entries = readdirSync(item.dir, { withFileTypes: true });
         for (const entry of entries) {
@@ -395,7 +422,7 @@ export class CodeIntelligenceRouter {
    * Skips node_modules, .git, dist, build, vendor, and hidden dirs.
    * Returns the first matching file found, preferring shallower directories.
    */
-  private findProbeFile(language: Language): string | null {
+  private async findProbeFile(language: Language): Promise<string | null> {
     const exts = Object.entries(EXT_TO_LANGUAGE)
       .filter(([_, lang]) => lang === language)
       .map(([ext]) => ext);
@@ -432,6 +459,9 @@ export class CodeIntelligenceRouter {
       const item = queue.shift();
       if (!item) break;
       visited++;
+      if (visited % CodeIntelligenceRouter.YIELD_EVERY_DIRS === 0) {
+        await CodeIntelligenceRouter.yieldToEventLoop();
+      }
       try {
         const entries = readdirSync(item.dir, { withFileTypes: true });
         for (const entry of entries) {
@@ -469,7 +499,7 @@ export class CodeIntelligenceRouter {
     onProgress?: (partial: HealthCheckResult) => void,
   ): Promise<HealthCheckResult> {
     const language = this.detectLanguage();
-    const probeFile = this.findProbeFile(language);
+    const probeFile = await this.findProbeFile(language);
     const results: BackendProbeResult[] = [];
 
     const INIT_TIMEOUT = 10_000;

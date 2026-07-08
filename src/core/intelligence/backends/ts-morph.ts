@@ -1,3 +1,4 @@
+import { statSync } from "node:fs";
 import { resolve } from "node:path";
 import type {
   CodeBlock,
@@ -203,6 +204,9 @@ export class TsMorphBackend implements IntelligenceBackend {
   // stays parsed, language service stays warm, and hot files are never evicted
   // because getSourceFile bumps them to MRU on every access.
   private static readonly SOURCE_FILE_CAP = 200;
+  /** Larger files are almost always generated/bundled output — parsing them into
+   *  a full TS AST blocks for seconds and bloats the Program permanently. */
+  private static readonly MAX_FILE_BYTES = 1024 * 1024;
   private readonly sourceFileLru = new Map<string, number>();
 
   supportsLanguage(language: Language): boolean {
@@ -2645,6 +2649,23 @@ export class TsMorphBackend implements IntelligenceBackend {
   ): Promise<SourceFile | null> {
     const project = await this.ensureProject();
     const absPath = resolve(file);
+
+    try {
+      if (statSync(absPath).size > TsMorphBackend.MAX_FILE_BYTES) {
+        const oversized = project.getSourceFile(absPath);
+        if (oversized) {
+          try {
+            project.removeSourceFile(oversized);
+          } catch {
+            // Best-effort — worst case the file stays until LRU eviction
+          }
+          this.sourceFileLru.delete(absPath);
+        }
+        return null;
+      }
+    } catch {
+      return null;
+    }
 
     let sourceFile = project.getSourceFile(absPath);
     if (!sourceFile) {
