@@ -2,6 +2,11 @@
 
 All notable changes to SoulForge are documented here.
 
+## [2.20.23] — 2026-07-08
+
+### Bug Fixes
+
+- **intelligence**: bound backend parsing and scans to prevent UI freezes (discussion #129)
 ## [2.20.22] — 2026-06-28
 
 ### Bug Fixes
