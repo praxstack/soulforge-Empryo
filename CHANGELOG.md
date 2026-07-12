@@ -2,6 +2,11 @@
 
 All notable changes to SoulForge are documented here.
 
+## [2.20.25] — 2026-07-12
+
+### Miscellaneous
+
+- **publish**: bump npm-publish node to 24
 ## [2.20.24] — 2026-07-12
 
 ### Features
