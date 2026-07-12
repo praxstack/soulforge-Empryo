@@ -2,6 +2,11 @@
 
 All notable changes to SoulForge are documented here.
 
+## [2.20.24] — 2026-07-12
+
+### Features
+
+- reface repo as Empryo + one-time TUI announcement
 ## [2.20.23] — 2026-07-08
 
 ### Bug Fixes
