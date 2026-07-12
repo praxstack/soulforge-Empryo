@@ -68,6 +68,7 @@ import { SimpleModalLayer } from "./ModalLayer.js";
 import { CommandPalette } from "./modals/CommandPalette.js";
 import { CommandPicker } from "./modals/CommandPicker.js";
 import { DiagnosePopup } from "./modals/DiagnosePopup.js";
+import { EmpryoAnnouncement } from "./modals/EmpryoAnnouncement.js";
 import { FirstRunWizard } from "./modals/FirstRunWizard.js";
 import { GitCommitModal } from "./modals/GitCommitModal.js";
 import { GitMenu } from "./modals/GitMenu.js";
@@ -572,6 +573,7 @@ export function App({
   const modalMCPSettings = useUIStore((s) => s.modals.mcpSettings);
   const modalHearthSettings = useUIStore((s) => s.modals.hearthSettings);
   const modalFirstRunWizard = useUIStore((s) => s.modals.firstRunWizard);
+  const modalEmpryoAnnouncement = useUIStore((s) => s.modals.empryoAnnouncement);
   const modalUpdateModal = useUIStore((s) => s.modals.updateModal);
   const modalTabNamePopup = useUIStore((s) => s.modals.tabNamePopup);
   const modalMemoryBrowser = useUIStore((s) => s.modals.memoryBrowser);
@@ -623,6 +625,24 @@ export function App({
       useUIStore.getState().openModal("firstRunWizard");
     }
   }, [config.onboardingComplete, forceWizard, resumeSessionId]);
+
+  // One-time "SoulForge is now Empryo" announcement. Shows once per install
+  // (until dismissed), sequenced after the setup/first-run modals so it never
+  // clobbers them. Persisted via `empryoAnnouncementDismissed` in global config.
+  const announcementShown = useRef(false);
+  useEffect(() => {
+    if (config.empryoAnnouncementDismissed || announcementShown.current) return;
+    if (getMissingRequired().length > 0) return;
+    const ui = useUIStore.getState();
+    if (ui.modals.setup || ui.modals.firstRunWizard) return; // wait for them to close
+    const timer = setTimeout(() => {
+      const u = useUIStore.getState();
+      if (u.modals.setup || u.modals.firstRunWizard || selectIsAnyModalOpen(u)) return;
+      announcementShown.current = true;
+      u.openModal("empryoAnnouncement");
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [config.empryoAnnouncementDismissed]);
 
   const cwd = getCwd();
 
@@ -2083,6 +2103,14 @@ export function App({
       />
 
       <UpdateModal visible={modalUpdateModal} onClose={getCloser("updateModal")} />
+
+      <EmpryoAnnouncement
+        visible={modalEmpryoAnnouncement}
+        onClose={(dontShowAgain) => {
+          useUIStore.getState().closeModal("empryoAnnouncement");
+          if (dontShowAgain) saveToScope({ empryoAnnouncementDismissed: true }, "global");
+        }}
+      />
 
       <TabNamePopup
         visible={modalTabNamePopup}

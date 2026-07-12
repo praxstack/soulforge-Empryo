@@ -397,6 +397,8 @@ export interface AppConfig {
   keyPriority?: "env" | "app";
   /** Whether the first-run onboarding wizard has been completed. */
   onboardingComplete?: boolean;
+  /** Whether the "SoulForge is now Empryo" announcement has been dismissed for good. */
+  empryoAnnouncementDismissed?: boolean;
   /** MCP servers to connect to. Each entry spawns a subprocess (stdio) or connects via HTTP+SSE. */
   mcpServers?: MCPServerConfig[];
   /** Auto-retry on stream stalls. Default: false (disabled). Toggle via /watchdog. */

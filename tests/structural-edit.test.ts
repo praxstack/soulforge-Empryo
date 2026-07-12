@@ -101,7 +101,7 @@ describe("structural_edit", () => {
     });
     expect(r.success).toBe(false);
     expect(r.error).toBe("missing-binary");
-    expect(r.output).toContain("ast-grep not found");
+    expect(r.output).toContain("ast-grep is not yet available");
   });
 
   test("rewrites a Python function name (when ast-grep present)", async () => {

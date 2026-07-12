@@ -31,6 +31,7 @@ export type ModalName =
   | "firstRunWizard"
   | "floatingTerminal"
   | "updateModal"
+  | "empryoAnnouncement"
   | "mcpSettings"
   | "hearthSettings"
   | "tabNamePopup"
@@ -67,6 +68,7 @@ const INITIAL_MODALS: Modals = {
   firstRunWizard: false,
   floatingTerminal: false,
   updateModal: false,
+  empryoAnnouncement: false,
   mcpSettings: false,
   hearthSettings: false,
   tabNamePopup: false,

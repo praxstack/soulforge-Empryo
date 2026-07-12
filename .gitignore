@@ -79,3 +79,4 @@ test_tmp/
 
 # Hook test output
 __hooks_test__/
+.empryo
