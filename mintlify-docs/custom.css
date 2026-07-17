@@ -47,3 +47,99 @@
 [data-theme="dark"] .callout {
   border-left-width: 3px !important;
 }
+
+/* ---------- Empryo banner — near-black field + terminal green ---------- */
+/* Mintlify renders docs.json "banner" as #banner; keep it Empryo-branded
+   in BOTH color schemes (it advertises a different product's theme). */
+#banner,
+[data-component="banner"] {
+  background:
+    radial-gradient(ellipse 60% 130% at 50% -30%, rgba(43, 238, 41, 0.14), transparent 70%),
+    #0a0a0a !important;
+  border-bottom: 1px solid rgba(29, 235, 27, 0.28) !important;
+  color: #ededeb !important;
+  font-family: 'JetBrains Mono', ui-monospace, monospace !important;
+  font-size: 13px !important;
+  letter-spacing: 0.01em;
+}
+
+#banner p,
+[data-component="banner"] p {
+  color: #ededeb !important;
+}
+
+#banner strong,
+[data-component="banner"] strong {
+  color: #ffffff !important;
+}
+
+#banner a,
+[data-component="banner"] a {
+  color: #2bee29 !important;
+  text-decoration: none !important;
+  border-bottom: 1px solid rgba(29, 235, 27, 0.35);
+  transition: border-color 0.15s ease, text-shadow 0.15s ease;
+}
+
+#banner a:hover,
+[data-component="banner"] a:hover {
+  border-bottom-color: #2bee29;
+  text-shadow: 0 0 12px rgba(43, 238, 41, 0.45);
+}
+
+/* Dismiss button stays visible on the dark field */
+#banner button,
+[data-component="banner"] button {
+  color: #8a8a86 !important;
+}
+
+#banner button:hover,
+[data-component="banner"] button:hover {
+  color: #ededeb !important;
+}
+
+/* ---------- Empryo banner animation — genome scan ---------- */
+#banner,
+[data-component="banner"] {
+  position: relative;
+  overflow: hidden;
+  animation: empryo-underglow 5s ease-in-out infinite;
+}
+
+/* A thin light-beam sweeping the banner like a sequencer head */
+#banner::after,
+[data-component="banner"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgba(43, 238, 41, 0.06) 42%,
+    rgba(43, 238, 41, 0.18) 50%,
+    rgba(43, 238, 41, 0.06) 58%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: empryo-scan 5s ease-in-out infinite;
+}
+
+@keyframes empryo-scan {
+  0% { transform: translateX(-100%); }
+  60%, 100% { transform: translateX(100%); }
+}
+
+@keyframes empryo-underglow {
+  0%, 100% { box-shadow: inset 0 -1px 0 rgba(29, 235, 27, 0.28); }
+  50% { box-shadow: inset 0 -1px 12px rgba(29, 235, 27, 0.22); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #banner,
+  [data-component="banner"],
+  #banner::after,
+  [data-component="banner"]::after {
+    animation: none;
+  }
+}

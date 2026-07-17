@@ -18,6 +18,10 @@
     }
   },
   "favicon": "/favicon.png",
+  "banner": {
+    "content": "🧬 **SoulForge has evolved into [Empryo](https://empryo.com)** — same graph engine, whole new form: native desktop app (macOS · Windows · Linux), terminal TUI & headless CI. **[Docs →](https://empryo.com/docs)** · **[Download →](https://empryo.com/download)**",
+    "dismissible": false
+  },
   "navigation": {
     "tabs": [
       {
