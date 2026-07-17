@@ -71,7 +71,7 @@ _None yet._
 
 > Sponsor badge, name listed here next to the others keeping the fire lit.
 
-_None yet._
+- **Levi** ([@feketefh](https://github.com/feketefh))
 
 ---
 
