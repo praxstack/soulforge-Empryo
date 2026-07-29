@@ -6,9 +6,11 @@
 
 <sub>previously **SoulForge**</sub>
 
-**Graph-powered code intelligence — multi-agent coding with codebase-aware AI.**
+**The AI coding agent that edits symbols, not strings.**
 
-[Website](https://empryo.com) · [Download](https://empryo.com/download) · [Changelog](https://empryo.com/changelog) · [Discussions](https://github.com/proxysoul/soulforge/discussions) · [Discord](https://discord.gg/fX4H7GYSMJ)
+Empryo reads your repository as a living system: it sequences a **genome** — a live, ranked dependency graph of every symbol — and edits through the AST, never find-and-replace.
+
+[Website](https://empryo.com) · [Download](https://empryo.com/download) · [Benchmarks](https://empryo.com/benchmarks) · [Changelog](https://empryo.com/changelog) · [Discussions](https://github.com/proxysoul/soulforge/discussions) · [Discord](https://discord.gg/fX4H7GYSMJ)
 
 <img alt="Empryo in action" src="assets/intro_picture.png" width="880" />
 
@@ -16,28 +18,7 @@
 
 ---
 
-**SoulForge is now Empryo** — the same symbol-level, graph-powered agent, rebuilt with a desktop app, a faster engine, and a composable core. Development continues on Empryo; this repository is its home for issues and discussions.
-
-## What is Empryo?
-
-Empryo understands your codebase as a **graph**, not a pile of text. It parses your repo with tree-sitter, ranks symbols with PageRank and git co-change, and edits code at the **symbol level** — so it reads what matters and changes exactly what it means to.
-
-It runs in a fast terminal UI, a native desktop app, and a scriptable headless mode. **Free to use** — bring your own provider key, or run fully local with Ollama. Your code never leaves your machine.
-
-## Highlights
-
-| | |
-|---|---|
-| **Live code graph** | tree-sitter parse, PageRank + git co-change, blast-radius tags, FTS5 + trigram search |
-| **Symbol-level editing** | AST edits via ts-morph (65+ ops, atomic batches) + structural edits across 30+ languages |
-| **Multi-agent** | parallel explore/edit agents with a shared I/O cache |
-| **Task router** | route each slot to a different model per tab — cheap to explore, strong to code |
-| **Time machine** | every prompt is a checkpoint with a git tag; rewind and redo conversation *and* files |
-| **22 providers** | Anthropic, OpenAI, Google, Groq, DeepSeek, Bedrock, Ollama, LM Studio, and any OpenAI-compatible endpoint |
-| **Desktop app** | native window, embedded browser, and the full agent |
-| **LSP + MCP** | 576+ language servers via Mason, any MCP server, 13 lifecycle hooks |
-
-Runs on **macOS, Linux, and Windows**.
+**SoulForge is now Empryo** — the same symbol-level, graph-powered agent, rebuilt with a desktop app, a faster engine, and a composable core. This repository is Empryo's public home for issues and discussions.
 
 ## Install
 
@@ -54,26 +35,68 @@ brew install proxysoul/tap/empryo
 winget install ProxySoul.Empryo
 ```
 
-Desktop app and prebuilt binaries: [empryo.com/download](https://empryo.com/download).
-
 ```bash
 empryo --set-key anthropic sk-ant-...   # or run locally with Ollama — no key required
 cd your-project
 empryo
 ```
 
+Desktop app and prebuilt binaries: [empryo.com/download](https://empryo.com/download). Runs on **macOS, Linux, and Windows**.
+
+## Why Empryo
+
+Most coding agents grep, read whole files, and patch strings — they never know what depends on the code they just changed. Empryo builds understanding before it mutates anything:
+
+- **It maps before it reads.** On launch, tree-sitter parses your repo into a live graph — every symbol, import, and call site, ranked by PageRank and git co-change. Graph queries answer in milliseconds and cost zero LLM tokens.
+- **It knows the blast radius.** Before an edit, the agent sees what imports a file, what historically changes with it, and how far a change ripples — "what breaks if I touch this?" is answered before the first keystroke.
+- **It edits through the AST.** 65+ symbol-level operations, atomic batches with all-or-nothing rollback, structural edits across 30+ languages, and a typecheck as the gate. Nothing breaks on whitespace.
+- **It treats tokens as spend.** The graph does the navigation models usually burn context on — fewer reads, fewer steps, smaller bills at any scale.
+
+## What's inside
+
+| | |
+|---|---|
+| **Code genome** | live dependency graph: tree-sitter across 30+ languages, PageRank + git co-change ranking, blast-radius tags, millisecond search |
+| **Symbol-level editing** | 65+ AST operations (atomic, with rollback) + structural edits in 30+ languages |
+| **Multi-agent** | parallel explore/edit agents with a shared I/O cache — cheap models scout, strong models write |
+| **Task router** | ten routable roles, any model in any seat, per tab — your own mixture of experts |
+| **Time machine** | every prompt is a git checkpoint; rewind code and conversation together, land on any turn |
+| **Three surfaces** | native desktop app, full terminal UI, headless CLI for scripts and CI — one genome, three phenotypes |
+| **LSP + MCP** | 576+ language servers via Mason, any MCP server, 13 lifecycle hooks |
+| **Free compaction** | structural context compaction with no LLM call — long sessions stay cheap |
+
+## One agent, many brains
+
+Empryo isn't one model in a loop — it's a crew, and you assign the seats. Every role is a routable slot that takes any model from any of the 22 providers:
+
+<div align="center">
+
+`brain` · `spark` <sub>scout</sub> · `ember` <sub>code</sub> · `explore` · `verify` <sub>review</sub> · `goal review` · `desloppify` · `summarize` · `compact` · `web search`
+
+</div>
+
+- **Per tab.** Each workspace tab carries its own routing — a frontier model writing code in one tab, a fast cheap one triaging issues in the next, a local model on a private repo in a third.
+- **Per config.** Set defaults globally or per project; override any slot from the tab. Cheap models scout, strong models write, reviewers judge with clean context.
+- **Custom agents.** Define your own agents — a prompt, a model, a tool policy — and dispatch them alongside the built-ins. Mix and match providers freely inside a single run.
+- **Cache-aware by design.** Routing keeps prompt-cache prefixes stable — sub-agents inherit their parent's cache line, so repeated context bills at cache-read rates instead of full price.
+- **Costs, itemized.** Live spend tracking per model, per sub-agent, per tab, per session, per day — you always know where the tokens went.
+
 ## Benchmarks
 
-Same models, same repository, same tasks — Empryo's graph does more with less.
+Head-to-head against pi — same models, same repositories, same tasks. The graph does more with less:
 
-|  | Empryo | Pi |
+| | Round 1 <sub>3 bugs × 3 models</sub> | Round 2 <sub>5 real bugs · hono / zod / ky</sub> |
 |---|:---:|:---:|
-| Bugs fixed | **8 / 9** | 7 / 9 |
-| Cost | **$1.13** | $1.58 |
-| Wall-clock | **4m 16s** | 10m 0s |
-| Input tokens | **1.09M** | 6.21M |
+| Bugs fixed | **8/9** vs 7/9 | **7/10** vs 6/10 |
+| Cost | **28% lower** — $1.13 vs $1.58 | **23% lower** — $7.08 vs $9.19 |
+| Wall-clock | **57% faster** — 4m 16s vs 10m | **32% faster** — 22m 30s vs 32m 55s |
+| Efficiency | **5.7× fewer input tokens** — 1.09M vs 6.21M | **28% fewer steps** — 274 vs 382 |
 
-Empryo navigates by symbols and call hierarchies instead of grep-and-read, so it takes fewer steps and consumes fewer tokens. Full methodology and transcripts: [empryo.com/benchmarks](https://empryo.com/benchmarks) · reproduce the run at [proxysoul/pi-vs-empryo-bench](https://github.com/proxysoul/pi-vs-empryo-bench).
+Round 2 used real bugs from merged PRs (post-training-cutoff, history scrubbed, regression tests injected after each run). Full methodology and transcripts: [empryo.com/benchmarks](https://empryo.com/benchmarks) · reproduce at [proxysoul/pi-vs-empryo-bench](https://github.com/proxysoul/pi-vs-empryo-bench).
+
+## Private by design
+
+Empryo runs entirely on your machine. Bring your own key — Anthropic, OpenAI, Google, Groq, DeepSeek, Bedrock, and 16 more, or any OpenAI-compatible endpoint — or run fully local with Ollama / LM Studio. No proxy in the middle, no code leaving your machine, no per-seat fee. **Free to use.**
 
 ## SoulForge
 
