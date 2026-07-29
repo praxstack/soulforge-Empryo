@@ -10,7 +10,7 @@
 
 [Website](https://empryo.com) · [Download](https://empryo.com/download) · [Changelog](https://empryo.com/changelog) · [Discussions](https://github.com/proxysoul/soulforge/discussions) · [Discord](https://discord.gg/fX4H7GYSMJ)
 
-<img alt="Empryo terminal UI" src="assets/TUI-1.png" width="880" />
+<img alt="Empryo in action" src="assets/intro_picture.png" width="880" />
 
 </div>
 
@@ -24,9 +24,7 @@ Empryo understands your codebase as a **graph**, not a pile of text. It parses y
 
 It runs in a fast terminal UI, a native desktop app, and a scriptable headless mode. **Free to use** — bring your own provider key, or run fully local with Ollama. Your code never leaves your machine.
 
-<div align="center">
-<img alt="Empryo desktop app" src="assets/desktop-2.png" width="880" />
-</div>
+## Highlights
 
 | | |
 |---|---|
@@ -35,7 +33,7 @@ It runs in a fast terminal UI, a native desktop app, and a scriptable headless m
 | **Multi-agent** | parallel explore/edit agents with a shared I/O cache |
 | **Task router** | route each slot to a different model per tab — cheap to explore, strong to code |
 | **Time machine** | every prompt is a checkpoint with a git tag; rewind and redo conversation *and* files |
-| **22 providers** | Anthropic, OpenAI, Google, Groq, DeepSeek, Bedrock, Ollama, LM Studio … + any OpenAI-compatible |
+| **22 providers** | Anthropic, OpenAI, Google, Groq, DeepSeek, Bedrock, Ollama, LM Studio, and any OpenAI-compatible endpoint |
 | **Desktop app** | native window, embedded browser, and the full agent |
 | **LSP + MCP** | 576+ language servers via Mason, any MCP server, 13 lifecycle hooks |
 
@@ -59,14 +57,14 @@ winget install ProxySoul.Empryo
 Desktop app and prebuilt binaries: [empryo.com/download](https://empryo.com/download).
 
 ```bash
-empryo --set-key anthropic sk-ant-...   # or run local with Ollama, no key
+empryo --set-key anthropic sk-ant-...   # or run locally with Ollama — no key required
 cd your-project
 empryo
 ```
 
 ## Benchmarks
 
-Same models, same repo, same tasks — Empryo's graph does more with less.
+Same models, same repository, same tasks — Empryo's graph does more with less.
 
 |  | Empryo | Pi |
 |---|:---:|:---:|
@@ -75,11 +73,11 @@ Same models, same repo, same tasks — Empryo's graph does more with less.
 | Wall-clock | **4m 16s** | 10m 0s |
 | Input tokens | **1.09M** | 6.21M |
 
-Empryo navigates by symbols and call hierarchies instead of grep-and-read, so it takes fewer steps and burns fewer tokens. Full methodology and transcripts: [empryo.com/benchmarks](https://empryo.com/benchmarks) · reproduce it at [proxysoul/pi-vs-empryo-bench](https://github.com/proxysoul/pi-vs-empryo-bench).
+Empryo navigates by symbols and call hierarchies instead of grep-and-read, so it takes fewer steps and consumes fewer tokens. Full methodology and transcripts: [empryo.com/benchmarks](https://empryo.com/benchmarks) · reproduce the run at [proxysoul/pi-vs-empryo-bench](https://github.com/proxysoul/pi-vs-empryo-bench).
 
 ## SoulForge
 
-SoulForge remains available to download and install, and we'll keep fixing bugs and critical issues. New features and active development move to Empryo.
+SoulForge remains available to download and install, and continues to receive fixes for bugs and critical issues. New features and active development have moved to Empryo.
 
 ```bash
 brew tap proxysoul/tap && brew install soulforge
@@ -90,7 +88,7 @@ bun install -g @proxysoul/soulforge
 ## This repository
 
 - **[Issues](https://github.com/proxysoul/soulforge/issues)** and **[Discussions](https://github.com/proxysoul/soulforge/discussions)** — the home for Empryo bug reports, questions, and ideas.
-- The SoulForge source stays archived here under its existing license (see [`LICENSE`](LICENSE)).
+- The SoulForge source remains archived here under its existing license (see [`LICENSE`](LICENSE)).
 
 ## Sponsors
 
