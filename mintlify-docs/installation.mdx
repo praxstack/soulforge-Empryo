@@ -1,126 +1,48 @@
 ---
 title: "Installation"
-description: "Install SoulForge on macOS, Linux, or Windows."
+description: "Install Empryo from the official website on macOS, Linux, or Windows."
 icon: "download"
 ---
 
 ## Install
 
+Official Empryo installers and direct downloads are available only from [empryo.com/download](https://empryo.com/download). Empryo is not distributed through Homebrew, WinGet, npm, or GitHub Releases.
+
 <Tabs>
   <Tab title="macOS / Linux">
     ```bash
-    brew tap proxysoul/tap && brew install soulforge
+    curl -fsSL https://empryo.com/install.sh | bash
     ```
-    Neovim and a Nerd Font are auto-installed on first launch.
+
+    The installer detects your platform and architecture, downloads from `dl.empryo.com`, and verifies the artifact checksum before installation.
   </Tab>
   <Tab title="Windows">
-    Download `soulforge-<version>-windows-x64.zip` (portable) or `soulforge-setup-<version>-x64.exe` (setup wizard) from the [latest release](https://github.com/proxysoul/soulforge/releases/latest).
+    ```powershell
+    irm https://empryo.com/install.ps1 | iex
+    ```
 
-    - **Portable ZIP**: extract anywhere and run `soulforge.exe`. Keep the `deps/` folder next to the executable.
-    - **Setup wizard**: double-click. Per-user install to `%LOCALAPPDATA%\Programs\SoulForge`, no UAC prompt, registers in Settings → Apps.
-
-    Requires Windows 10 1809+ or Windows 11 (x64). ARM64 is not supported yet. SmartScreen may warn on first run — click **More info → Run anyway**.
+    You can also download the Windows setup wizard or portable ZIP from the [official download page](https://empryo.com/download).
+  </Tab>
+  <Tab title="Desktop app">
+    Download the macOS, Linux, or Windows desktop app from [empryo.com/download](https://empryo.com/download).
   </Tab>
 </Tabs>
-
-<Accordion title="Other install methods">
-  <Tabs>
-    <Tab title="Prebuilt binary">
-      ```bash
-      # macOS / Linux
-      tar xzf soulforge-*.tar.gz && cd soulforge-*/ && ./install.sh
-      ```
-      Windows: download `soulforge-<version>-windows-x64.zip`, unzip anywhere, run `soulforge.exe`.
-    </Tab>
-    <Tab title="Bun / npm">
-      Requires [Bun](https://bun.sh) >= 1.3.13 or Node 20+.
-      ```bash
-      bun install -g @proxysoul/soulforge
-      # or
-      npm install -g @proxysoul/soulforge
-      ```
-    </Tab>
-    <Tab title="Source">
-      ```bash
-      git clone https://github.com/proxysoul/soulforge.git
-      cd soulforge && bun install && bun run dev
-      ```
-    </Tab>
-  </Tabs>
-</Accordion>
-
-## Windows notes
-
-SoulForge stores config + data under `%LOCALAPPDATA%\SoulForge`. Secrets are DPAPI-encrypted (`crypt32.dll`, user-scoped).
-
-A couple of features are off by default on Windows:
-
-- Embedded floating terminal panel — disabled (`ghostty-opentui` native addon has no stable win32 build). Override with `SOULFORGE_ENABLE_GHOSTTY=1` if you've patched it locally.
-- Kitty graphics image preview — disabled (Windows Terminal + ConPTY don't speak the protocol). Half-block art still works.
-- `glob` tool `find` fallback — install `fd` (`winget install sharkdp.fd`) for full glob support.
-
-Everything else — all 21 providers, every tool, LSP, Soul Map, sessions, checkpoints, memory, MCP, themes, headless mode — works identically across macOS, Linux, and Windows.
 
 ## Add a key
 
-You need at least one LLM provider key. Pick one path:
+```bash
+empryo --set-key anthropic sk-ant-...
+```
 
-<Tabs>
-  <Tab title="One key, every model">
-    [LLM Gateway](https://llmgateway.io/dashboard?ref=6tjJR2H3X4E9RmVQiQwK) — one key for Claude, GPT, Gemini, Grok, Llama, Qwen, and others. Up to 30% off frontier models.
-
-    ```bash
-    soulforge --set-key llmgateway sk-...
-    ```
-  </Tab>
-  <Tab title="OpenRouter">
-    ```bash
-    soulforge --set-key openrouter sk-or-...
-    ```
-    Get a key at [openrouter.ai](https://openrouter.ai).
-  </Tab>
-  <Tab title="Anthropic">
-    ```bash
-    soulforge --set-key anthropic sk-ant-...
-    ```
-    Get a key at [console.anthropic.com](https://console.anthropic.com).
-  </Tab>
-  <Tab title="OpenAI">
-    ```bash
-    soulforge --set-key openai sk-...
-    ```
-    Get a key at [platform.openai.com](https://platform.openai.com).
-  </Tab>
-  <Tab title="Local (free)">
-    Run Ollama or LM Studio locally — no key needed.
-    ```bash
-    brew install ollama && ollama pull llama3.3
-    ```
-    SoulForge auto-detects it on launch.
-  </Tab>
-  <Tab title="GitHub Copilot">
-    Use your existing Copilot subscription.
-    ```bash
-    # after signing in via VS Code:
-    soulforge --set-key copilot $(jq -r '.["github.com"].oauth_token' \
-      ~/.config/github-copilot/apps.json)
-    ```
-    See [Copilot setup](/providers/copilot) for the full guide.
-  </Tab>
-</Tabs>
-
-Keys are stored in your OS keychain: macOS Keychain, Linux `secret-tool` (libsecret), Windows DPAPI (`crypt32.dll`, user-scoped, at `%LOCALAPPDATA%\SoulForge\secrets.dat`). You can also `export ANTHROPIC_API_KEY=...` in your shell profile.
-
-[See all 21 providers →](/providers/overview)
+Empryo also supports other cloud providers and local models. See the [current provider documentation](https://empryo.com/docs/providers/overview).
 
 ## Launch
 
 ```bash
-soulforge
+cd your-project
+empryo
 ```
 
-Press `Ctrl+L` to switch models. Type `/help` for commands.
-
-<Card title="Next: Quickstart" href="/quickstart" icon="rocket">
-  Five minutes to your first refactor.
+<Card title="Current Empryo documentation" href="https://empryo.com/docs" icon="book">
+  Read the maintained installation, provider, and quickstart guides on the Empryo website.
 </Card>

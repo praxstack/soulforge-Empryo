@@ -30,10 +30,7 @@ curl -fsSL https://empryo.com/install.sh | bash
 irm https://empryo.com/install.ps1 | iex
 ```
 
-```bash
-brew install proxysoul/tap/empryo
-winget install ProxySoul.Empryo
-```
+Official installers and direct downloads are available only from [empryo.com/download](https://empryo.com/download). Empryo is not distributed through Homebrew, WinGet, or npm.
 
 ```bash
 empryo --set-key anthropic sk-ant-...   # or run locally with Ollama — no key required
@@ -41,7 +38,7 @@ cd your-project
 empryo
 ```
 
-Desktop app and prebuilt binaries: [empryo.com/download](https://empryo.com/download). Runs on **macOS, Linux, and Windows**.
+Desktop app and prebuilt binaries: [empryo.com/download](https://empryo.com/download). Runs on **macOS, Linux, and Windows**. Do not download Empryo binaries from GitHub Releases or third-party package managers.
 
 ## Why Empryo
 
@@ -127,6 +124,6 @@ bun install -g @proxysoul/soulforge
 
 <sub>One API, 200+ models, up to 30% off frontier. Wired in as the <code>llmgateway</code> provider.</sub>
 
-<sub><a href="https://github.com/sponsors/proxysoul">Sponsor</a> · <a href="https://paypal.me/waeru">PayPal</a> · <a href="BACKERS.md">All backers</a></sub>
+<sub><a href="https://github.com/sponsors/proxysoul">Sponsor</a> · <a href="https://paypal.me/waeru">PayPal</a> · <a href="BACKERS.md">Featured sponsors and all backers</a></sub>
 
 </div>

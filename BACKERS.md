@@ -1,14 +1,8 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/SOULFORGE_LOGO.png" />
-  <source media="(prefers-color-scheme: light)" srcset="assets/SOULFORGE_LOGO_LIGHT.png" />
-  <img alt="SoulForge" src="assets/SOULFORGE_LOGO.png" width="400" />
-</picture>
-
 # Backers
 
-**SoulForge is fueled by people and companies who believe code deserves to be treated as code.**
+**Empryo is fueled by people and companies who believe code deserves to be treated as code.**
 Every name below kept the forge lit.
 
 [**Become a sponsor →**](https://github.com/sponsors/proxysoul)
@@ -32,7 +26,7 @@ Premium partners. Logos appear in the README and on the docs site.
   </picture>
 </a>
 <br/>
-<sub><b><a href="https://llmgateway.io">LLM Gateway</a></b> — one API for OpenAI, Anthropic, Google, and 30+ providers. <b>Up to 30% off frontier models</b>, real-time cost analytics, bring-your-own-keys, open-source and self-hostable. SoulForge ships an <code>llmgateway</code> provider out of the box.</sub>
+<sub><b><a href="https://llmgateway.io">LLM Gateway</a></b> — one API for OpenAI, Anthropic, Google, and 30+ providers. <b>Up to 30% off frontier models</b>, real-time cost analytics, bring-your-own-keys, open-source and self-hostable. Empryo ships an <code>llmgateway</code> provider out of the box.</sub>
 </td>
 </tr>
 </table>
@@ -79,7 +73,7 @@ _None yet._
 
 One-time supporters at the **$200+ tier** — listed permanently, not just for the active month.
 
-- **[LLM Gateway](https://llmgateway.io)** ([@theopenco](https://github.com/theopenco)) — one API for OpenAI, Anthropic, Google, and 30+ providers. **Up to 30% off frontier models**, open-source alternative to OpenRouter with self-hosting, real-time analytics, and bring-your-own-keys. SoulForge ships an `llmgateway` provider out of the box.
+- **[LLM Gateway](https://llmgateway.io)** ([@theopenco](https://github.com/theopenco)) — one API for OpenAI, Anthropic, Google, and 30+ providers. **Up to 30% off frontier models**, open-source alternative to OpenRouter with self-hosting, real-time analytics, and bring-your-own-keys. Empryo ships an `llmgateway` provider out of the box.
 
 ---
 
@@ -96,6 +90,6 @@ One-time supporters at the $10 / $50 tier. Thank you for tossing a coin in — e
 
 **Thank you for keeping the fire lit.** 🔥
 
-[Sponsor SoulForge](https://github.com/sponsors/proxysoul) (monthly or one-time) · [PayPal](https://paypal.me/waeru) (one-time) · [Read the docs](https://soulforge.proxysoul.com)
+[Sponsor Empryo](https://github.com/sponsors/proxysoul) (monthly or one-time) · [PayPal](https://paypal.me/waeru) (one-time) · [Read the docs](https://docs.empryo.com)
 
 </div>

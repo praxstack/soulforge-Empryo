@@ -75,47 +75,29 @@ Or use the built-in **Proxy provider** to relay through a local CLIProxyAPI inst
 
 ## Install
 
-### Option 1: Prebuilt binary (recommended)
+### Option 1: Verified installer (recommended)
 
-Download the latest release from [GitHub Releases](https://github.com/ProxySoul/soulforge/releases/latest), extract, and run the installer:
-
-```bash
-tar xzf soulforge-*.tar.gz
-cd soulforge-*/
-./install.sh
-```
-
-Installs to `~/.soulforge/` and adds it to your PATH.
-
-### Option 2: Homebrew
+macOS / Linux:
 
 ```bash
-brew tap proxysoul/tap
-brew install soulforge
+curl -fsSL https://empryo.com/install.sh | bash
 ```
 
-### Option 3: Bun (global install)
+Windows (PowerShell):
 
-Requires [Bun](https://bun.sh) >= 1.2 — SoulForge uses Bun-specific APIs.
-
-```bash
-curl -fsSL https://bun.sh/install | bash   # install Bun if needed
-bun install -g @proxysoul/soulforge
+```powershell
+irm https://empryo.com/install.ps1 | iex
 ```
 
-### Option 4: Build from source
+### Option 2: Direct download
 
-```bash
-git clone https://github.com/ProxySoul/soulforge.git
-cd soulforge
-bun install
-bun run dev          # development mode
-# or: bun run build && bun link   # install globally
-```
+Download the desktop app or prebuilt terminal binary from the [official Empryo download page](https://empryo.com/download).
+
+Empryo is not distributed through Homebrew, WinGet, npm, or GitHub Releases. Official downloads are served only through the Empryo website.
 
 ### First run
 
-On first launch, SoulForge creates a config at `~/.soulforge/config.json` with sensible defaults. It will check for Neovim and Nerd Fonts and offer to install them if missing.
+On first launch, Empryo creates its config under `~/.empryo/`. It checks for optional editor and font integrations and offers to install them if missing.
 
 ## The Interface
 
