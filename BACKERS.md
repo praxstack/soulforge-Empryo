@@ -59,13 +59,14 @@ _None yet._
 
 > Name in BACKERS.md, release notes shoutout, early changelog peeks.
 
-_None yet._
+- **[3utterfly3ffect](https://github.com/peter1599)**
 
 ### 🪵 Spark — $5/mo
 
 > Sponsor badge, name listed here next to the others keeping the fire lit.
 
 - **Levi** ([@feketefh](https://github.com/feketefh))
+- **Praneeth Merugu** ([@PraneethMerugu](https://github.com/PraneethMerugu))
 
 ---
 
