@@ -95,8 +95,68 @@ const INVISIBLE =
 /** `{name}`, `{count, plural, …}` — the argument NAMES a message depends on. */
 function placeholders(pattern: string): Set<string> {
   const names = new Set<string>();
-  for (const m of pattern.matchAll(/\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:,|\})/g)) names.add(m[1]!);
+  walk(pattern, 0, pattern.length, names);
   return names;
+}
+
+/**
+ * The argument names in `[from, to)`, counting only real arguments.
+ *
+ * A regex cannot do this. `{count, plural, one {image} other {# images}}` has
+ * ONE argument — `count` — but `{image}` is a branch BODY, and it is spelled
+ * exactly like a simple placeholder. A scanner that cannot tell them apart
+ * demands an `{image}` the English never had, and rejects a correct
+ * translation: the branch bodies are the words a translator is supposed to
+ * replace. So parse: read an argument's name, and if it opens branches, walk
+ * each body recursively — placeholders nested INSIDE a body are real and are
+ * collected on the way through.
+ */
+function walk(src: string, from: number, to: number, out: Set<string>): void {
+  let i = from;
+  while (i < to) {
+    if (src[i] !== "{") {
+      i++;
+      continue;
+    }
+    const close = matching(src, i, to);
+    if (close < 0) return; // unbalanced: `balanced()` reports it on its own
+    const inner = src.slice(i + 1, close);
+    const name = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(,|$)/.exec(inner);
+    if (!name) {
+      i = close + 1;
+      continue;
+    }
+    out.add(name[1]!);
+    if (name[2] === ",") {
+      // `{n, plural, one {…} other {…}}`. What follows the type is a list of
+      // `keyword {body}` pairs. Each BODY is a nested message — recurse INSIDE
+      // its braces, never over them: the braces belong to the branch, and
+      // treating them as an argument is what made `one {image}` demand an
+      // `{image}` placeholder the English never had.
+      let j = i + 1 + inner.indexOf(",");
+      while (j < close) {
+        if (src[j] !== "{") {
+          j++;
+          continue;
+        }
+        const bodyEnd = matching(src, j, close);
+        if (bodyEnd < 0) break;
+        walk(src, j + 1, bodyEnd, out);
+        j = bodyEnd + 1;
+      }
+    }
+    i = close + 1;
+  }
+}
+
+/** Index of the `}` closing the `{` at `open`, or -1. */
+function matching(src: string, open: number, to: number): number {
+  let depth = 0;
+  for (let i = open; i < to; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) return i;
+  }
+  return -1;
 }
 
 /** Arguments used with a plural form, per pattern. */

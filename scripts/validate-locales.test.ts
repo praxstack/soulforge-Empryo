@@ -16,6 +16,11 @@ const EN = {
   "common.action.cancel": "Cancel",
   "common.label.files": "Files",
   "session.steps": "{count, plural, one {# step} other {# steps}}",
+  // A plural whose ONE branch is a bare word. `{step}` here is a branch BODY,
+  // not a placeholder — the case that made the gate demand a `{step}` no
+  // translation could supply.
+  "session.one-or-many": "{count, plural, one {step} other {# steps}}",
+  "session.nested": "{count, plural, one {# file in {dir}} other {# files in {dir}}}",
   "session.greeting": "Welcome back, {name}",
   "common.state.ready": "Ready",
 };
@@ -95,6 +100,24 @@ describe("locale gate", () => {
     expect(out).toContain("missing {name}");
   });
 
+  test("a plural branch body is not a placeholder", () => {
+    // Translating the branch bodies is the whole job; a gate that reads them as
+    // required placeholders rejects every correct translation of this shape.
+    const { code, out } = gate({
+      "session.one-or-many": "{count, plural, zero {لا خطوات} one {خطوة} two {خطوتان} few {# خطوات} many {# خطوة} other {# خطوة}}",
+    });
+    expect(out).not.toContain("missing {step}");
+    expect(code).toBe(0);
+  });
+
+  test("a placeholder nested inside a plural branch is still required", () => {
+    const { code, out } = gate({
+      "session.nested": "{count, plural, one {# ملف} other {# ملفات}}",
+    });
+    expect(code).not.toBe(0);
+    expect(out).toContain("missing {dir}");
+  });
+
   test("refuses an invented placeholder", () => {
     const { code, out } = gate({ "session.greeting": "Welcome, {name} ({email})" });
     expect(code).not.toBe(0);
@@ -132,8 +155,12 @@ describe("locale gate", () => {
   });
 
   test("reports coverage so a partial translation reads as partial", () => {
+    // The fraction, not a fixed percentage: the English fixture grows whenever
+    // a new shape needs covering, and a hardcoded number turns that into a
+    // failing test about nothing.
     const { out } = gate({ "common.action.cancel": "取消" });
-    expect(out).toMatch(/20% translated/);
+    expect(out).toMatch(new RegExp(`\\(1/${Object.keys(EN).length}\\)`));
+    expect(out).toMatch(/% translated/);
   });
 
   /**
