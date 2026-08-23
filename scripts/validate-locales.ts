@@ -118,7 +118,15 @@ function balanced(s: string): boolean {
 const src = (await Bun.file(SOURCE).json()) as Catalog;
 const srcKeys = new Set(Object.keys(src));
 
-const only = process.argv[2];
+/**
+ * `--allow-stale`: a key the source catalog no longer has is reported but does
+ * not fail the run. Upstream (the PR gate) never passes this — a translation
+ * must match the published en.json. The private tree passes it when embedding:
+ * there en.json moves first and translations lag behind by design, and the
+ * embed step drops unknown keys itself.
+ */
+const allowStale = process.argv.includes("--allow-stale");
+const only = process.argv.slice(2).find((a) => !a.startsWith("--"));
 const targets: string[] = [];
 for await (const f of new Glob("*.json").scan(DIR)) {
   const tag = f.replace(/\.json$/, "");
@@ -206,19 +214,29 @@ for (const tag of targets) {
   // next to five real translated strings reads as a failure rather than a start.
   const exact = (have / srcKeys.size) * 100;
   const pct = have > 0 ? Math.max(1, Math.floor(exact)) : 0;
-  const bad = problems.filter((p) => p.locale === tag).length;
+  const mine = problems.filter((p) => p.locale === tag);
+  const bad = (allowStale ? mine.filter((p) => p.rule !== "unknown-key") : mine).length;
+  const stale = mine.length - bad;
   const status = bad === 0 ? "ok  " : "FAIL";
-  const count = bad ? `  ${bad} problem${bad === 1 ? "" : "s"}` : "";
+  const count =
+    (bad ? `  ${bad} problem${bad === 1 ? "" : "s"}` : "") +
+    (stale ? `  ${stale} stale` : "");
   console.log(
     `${status}  ${tag.padEnd(8)} ${String(pct).padStart(3)}% translated  (${have}/${srcKeys.size})${count}`,
   );
 }
 
-if (problems.length > 0) {
+const fatal = allowStale ? problems.filter((p) => p.rule !== "unknown-key") : problems;
+if (fatal.length > 0) {
   console.log("");
-  for (const p of problems) {
+  for (const p of fatal) {
     console.log(`  ${p.locale}  ${p.rule.padEnd(14)} ${p.key}\n      ${p.detail}`);
   }
-  console.log(`\n${problems.length} problem${problems.length === 1 ? "" : "s"}. Not safe to merge.`);
+}
+if (fatal.length > 0) {
+  console.log(`\n${fatal.length} problem${fatal.length === 1 ? "" : "s"}. Not safe to merge.`);
   process.exit(1);
+}
+if (problems.length > fatal.length) {
+  console.log(`\n${problems.length - fatal.length} stale key(s) ignored (--allow-stale).`);
 }
