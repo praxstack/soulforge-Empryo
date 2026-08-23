@@ -22,6 +22,8 @@ const EN = {
   "session.one-or-many": "{count, plural, one {step} other {# steps}}",
   "session.nested": "{count, plural, one {# file in {dir}} other {# files in {dir}}}",
   "session.greeting": "Welcome back, {name}",
+  // A genuinely two-paragraph message: its translation needs newlines too.
+  "session.confirm": "Discard these changes?\n\nThis cannot be undone.",
   "common.state.ready": "Ready",
 };
 
@@ -92,6 +94,18 @@ describe("locale gate", () => {
     const { code, out } = gate({ "common.action.cancel": "x".repeat(500) });
     expect(code).not.toBe(0);
     expect(out).toContain("length");
+  });
+
+  test("a newline is allowed where the English has one", () => {
+    const { code, out } = gate({ "session.confirm": "تجاهل هذه التغييرات؟\n\nلا يمكن التراجع." });
+    expect(out).not.toContain("control-char");
+    expect(code).toBe(0);
+  });
+
+  test("a newline the English never had is still refused", () => {
+    const { code, out } = gate({ "common.action.cancel": "إلغاء\nOSC" });
+    expect(code).not.toBe(0);
+    expect(out).toContain("control-char");
   });
 
   test("refuses a dropped placeholder", () => {

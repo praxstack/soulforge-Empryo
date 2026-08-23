@@ -236,7 +236,14 @@ for (const tag of targets) {
       continue;
     }
 
-    if (CONTROL.test(value)) {
+    // A newline is not an escape. Some English messages are genuinely two
+    // paragraphs — a confirm body with the diff stat between them — and their
+    // translations have to be too. The runtime agrees: `scrub()` in
+    // packages/base/src/i18n/index.ts strips the control range but leaves
+    // \n and \t alone. So refuse a newline only where the English has none,
+    // which still catches a pasted terminal capture smuggling one in.
+    const stripped = src[key]!.includes("\n") ? value.replace(/\n/g, "") : value;
+    if (CONTROL.test(stripped)) {
       note(tag, key, "control-char", "contains an escape or control character");
     }
     if (BIDI.test(value)) {
