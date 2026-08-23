@@ -79,6 +79,22 @@ Run `bun scripts/validate-locales.ts` before you open a pull request. It fails o
 This is strict because these files come from strangers on the internet and end up
 painted into a terminal on someone else's machine. Nothing personal.
 
+## Slash commands in your language
+
+Two kinds of key describe each command:
+
+```json
+"command.language.desc": "UI language — pick a bundled translation or follow the system",
+"command.language.name": "language"
+```
+
+`.desc` is the one-line description shown in the palette — translate it like any other
+string. `.name` is the command's **name**: translate it and people can type
+`/لغة` instead of `/language` once they turn on *Translated commands* in the language
+settings (it is off by default; the English name always works). A name is one word:
+letters, digits, `-` or `_`, no spaces, no slash. Hyphenate a two-word command
+(`"git stash"` → `"تخزين-مؤقت"`). Leave acronyms alone (`mcp`, `lsp`, `fff`).
+
 ## Right-to-left languages
 
 Arabic, Hebrew, Persian and Urdu are welcome. Be aware of where they land:
@@ -99,28 +115,26 @@ length in *visual* width — four ideographs occupy about as much room as eight 
 
 ## When English changes
 
-New keys appear in `en.json` when features are added. Your file does not need updating
-immediately — the new keys just show in English until someone translates them. Run the
-checker any time to see your coverage:
+New keys appear in `en.json` when features are added; keys vanish when a string is
+removed. Your file does not need updating immediately — new keys show in English until
+someone translates them, and a key English dropped is pruned from your file the next
+time `en.json` is published. Run the checker any time to see your coverage:
 
 ```
 ok    ja        68% translated  (848/1247)
 ```
 
-## Where `en.json` comes from
+## Using a translation before it ships
 
-It is generated, not written by hand. The strings are extracted from the application
-source and published here so you have something to translate against. That means:
-
-- **Do not edit `en.json`.** Your changes would be overwritten the next time it is
-  published. If a source string itself is wrong or unclear, open an issue instead.
-- New keys appear when features are added. Your file does not need to keep up — the
-  new keys just show in English until somebody translates them.
+Every release bundles the catalogs that were here at the time. To use newer ones
+without waiting: turn on **Live updates** in the language settings (`/language` in the
+terminal, Settings → Language on desktop). Empryo then fetches this folder straight
+from GitHub — checked against the same rules as the pull-request gate before a single
+string is shown — and keeps a copy in `~/.empryo/locales/`. It is off by default.
 
 ## What happens to your pull request
 
-Once merged, it is copied into the build tree, checked again, and committed there. From
-that point it ships in the next release. The commit your file came from is recorded, so
-the text in any released binary can be traced back to the pull request that wrote it.
-
-You do not need to do anything for that to happen.
+It is merged here, then copied into the private build tree with `bun run locales:sync`,
+reviewed once more, and committed. From there it ships in the next release. The commit
+your file came from is recorded in `.locales-lock.json`, so the text in any released
+binary traces back to the pull request that wrote it.

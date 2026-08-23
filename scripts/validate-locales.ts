@@ -185,6 +185,11 @@ for (const tag of targets) {
     if (INVISIBLE.test(value)) {
       note(tag, key, "invisible", "contains zero-width or invisible formatting");
     }
+    // A command NAME becomes something a user types after `/`: one token, no
+    // slash, no whitespace, nothing a shell or the command parser would split.
+    if (/^command\..*\.name$/.test(key) && !/^[\p{L}\p{M}\p{N}_-]{1,32}$/u.test(value)) {
+      note(tag, key, "command-name", "must be one word (letters, digits, - _), no slash");
+    }
     if (value.length > MAX_LEN) {
       note(tag, key, "length", `${value.length} chars, limit is ${MAX_LEN}`);
     }
