@@ -1,0 +1,187 @@
+/**
+ * The locale gate is a security control, and a security control that has never
+ * been shown a hostile input is a wish. Each case below is a real thing a
+ * translation pull request could contain, built from escape sequences so this
+ * file stays readable in a diff.
+ */
+import { describe, expect, test } from "bun:test";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const SCRIPT = join(import.meta.dir, "validate-locales.ts");
+
+/** English source used by every case. Small, with one plural and one placeholder. */
+const EN = {
+  "common.action.cancel": "Cancel",
+  "common.label.files": "Files",
+  "session.steps": "{count, plural, one {# step} other {# steps}}",
+  "session.greeting": "Welcome back, {name}",
+  "common.state.ready": "Ready",
+};
+
+/** Run the gate over a throwaway locale tree. */
+function gate(locale: Record<string, unknown>): { code: number; out: string } {
+  const dir = mkdtempSync(join(tmpdir(), "empryo-locales-"));
+  writeFileSync(join(dir, "en.json"), JSON.stringify(EN));
+  writeFileSync(join(dir, "zz.json"), JSON.stringify(locale));
+  const proc = Bun.spawnSync(["bun", SCRIPT], {
+    env: { ...process.env, LOCALES_DIR: dir },
+  });
+  return {
+    code: proc.exitCode ?? -1,
+    out: proc.stdout.toString() + proc.stderr.toString(),
+  };
+}
+
+describe("locale gate", () => {
+  test("accepts an honest translation", () => {
+    const { code, out } = gate({
+      "common.action.cancel": "取消",
+      "common.label.files": "文件",
+      "session.steps": "{count, plural, other {# 步}}",
+      "session.greeting": "欢迎回来，{name}",
+    });
+    expect(code).toBe(0);
+    expect(out).toContain("ok");
+  });
+
+  test("accepts right-to-left text without explicit overrides", () => {
+    // Arabic derives direction from its own letters; no control marks needed.
+    const { code } = gate({ "common.action.cancel": "إلغاء", "common.label.files": "الملفات" });
+    expect(code).toBe(0);
+  });
+
+  test("refuses OSC 52, which would write the user's clipboard", () => {
+    const osc = `\u001b]52;c;${btoa("stolen")}\u0007Cancel`;
+    const { code, out } = gate({ "common.action.cancel": osc });
+    expect(code).not.toBe(0);
+    expect(out).toContain("control-char");
+  });
+
+  test("refuses cursor-movement sequences that could forge a prompt", () => {
+    const { code, out } = gate({ "common.action.cancel": "\u001b[2J\u001b[HCancel" });
+    expect(code).not.toBe(0);
+    expect(out).toContain("control-char");
+  });
+
+  test("refuses C1 controls, which some terminals treat as escape introducers", () => {
+    const { code, out } = gate({ "common.action.cancel": "Cancel\u009b0m" });
+    expect(code).not.toBe(0);
+    expect(out).toContain("control-char");
+  });
+
+  test("refuses bidi overrides (Trojan Source)", () => {
+    const { code, out } = gate({ "common.action.cancel": "\u202eCancel" });
+    expect(code).not.toBe(0);
+    expect(out).toContain("bidi-override");
+  });
+
+  test("refuses invisible padding", () => {
+    const { code, out } = gate({ "common.action.cancel": `Cancel${"\u200b".repeat(20)}` });
+    expect(code).not.toBe(0);
+    expect(out).toContain("invisible");
+  });
+
+  test("refuses an oversized value", () => {
+    const { code, out } = gate({ "common.action.cancel": "x".repeat(500) });
+    expect(code).not.toBe(0);
+    expect(out).toContain("length");
+  });
+
+  test("refuses a dropped placeholder", () => {
+    const { code, out } = gate({ "session.greeting": "Welcome back" });
+    expect(code).not.toBe(0);
+    expect(out).toContain("missing {name}");
+  });
+
+  test("refuses an invented placeholder", () => {
+    const { code, out } = gate({ "session.greeting": "Welcome, {name} ({email})" });
+    expect(code).not.toBe(0);
+    expect(out).toContain("unexpected {email}");
+  });
+
+  test("refuses a plural that lost its plural form", () => {
+    const { code, out } = gate({ "session.steps": "{count} steps" });
+    expect(code).not.toBe(0);
+    expect(out).toContain("plural");
+  });
+
+  test("refuses a plural with no `other` branch", () => {
+    const { code, out } = gate({ "session.steps": "{count, plural, one {# krok}}" });
+    expect(code).not.toBe(0);
+    expect(out).toContain("other");
+  });
+
+  test("refuses unbalanced braces", () => {
+    const { code, out } = gate({ "common.action.cancel": "Cancel {" });
+    expect(code).not.toBe(0);
+    expect(out).toContain("braces");
+  });
+
+  test("refuses a key that is not in the source catalog", () => {
+    const { code, out } = gate({ "totally.made.up": "hi" });
+    expect(code).not.toBe(0);
+    expect(out).toContain("unknown-key");
+  });
+
+  test("refuses a non-string value", () => {
+    const { code, out } = gate({ "common.action.cancel": 42 });
+    expect(code).not.toBe(0);
+    expect(out).toContain("type");
+  });
+
+  test("reports coverage so a partial translation reads as partial", () => {
+    const { out } = gate({ "common.action.cancel": "取消" });
+    expect(out).toMatch(/20% translated/);
+  });
+
+  /**
+   * Invisible-character classes the first version of this gate let straight
+   * through. Each renders as nothing, so each is a channel that survives review.
+   */
+  test("refuses Unicode Tag characters, the ASCII-smuggling block", () => {
+    const smuggled = `Cancel${String.fromCodePoint(0xe0001, 0xe0041, 0xe0042)}`;
+    const { code, out } = gate({ "common.action.cancel": smuggled });
+    expect(code).not.toBe(0);
+    expect(out).toContain("invisible");
+  });
+
+  test("refuses variation selectors used as a hidden channel", () => {
+    for (const cp of [0xfe00, 0xe0100]) {
+      const { code } = gate({ "common.action.cancel": `Cancel${String.fromCodePoint(cp)}` });
+      expect(code).not.toBe(0);
+    }
+  });
+
+  test("refuses line and paragraph separators", () => {
+    for (const cp of [0x2028, 0x2029]) {
+      const { code } = gate({ "common.action.cancel": `Cancel${String.fromCodePoint(cp)}` });
+      expect(code).not.toBe(0);
+    }
+  });
+
+  test("refuses soft hyphen, ALM, MVS and interlinear annotation", () => {
+    for (const cp of [0x00ad, 0x061c, 0x180e, 0xfff9]) {
+      const { code } = gate({ "common.action.cancel": `Cancel${String.fromCodePoint(cp)}` });
+      expect(code).not.toBe(0);
+    }
+  });
+
+  test("still accepts ordinary text after all that tightening", () => {
+    const { code } = gate({
+      "common.action.cancel": "キャンセル",
+      "common.label.files": "ファイル",
+      "session.greeting": "{name}さん、おかえりなさい",
+    });
+    expect(code).toBe(0);
+  });
+
+  test("refuses a file too large to be a translation, before parsing it", () => {
+    // 5 MB of a valid-looking value: the size check must fire, not JSON.parse.
+    const { code, out } = gate({ "common.action.cancel": "x".repeat(5 * 1024 * 1024) });
+    expect(code).not.toBe(0);
+    expect(out).toContain("size");
+    expect(out).not.toContain("length"); // never got as far as the per-value rule
+  });
+});

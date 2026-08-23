@@ -22,6 +22,15 @@
 /.github/workflows/          @proxysoul
 /package.json                @proxysoul
 
+# Locale gate — a security control. Translations (`/locales/<tag>.json`) are
+# welcome from anyone; the gate that checks them and the generated `en.json`
+# are not editable by contribution, and a PR that touches them alongside a
+# translation should be read as a question, not a translation.
+/scripts/validate-locales.ts       @proxysoul
+/scripts/validate-locales.test.ts  @proxysoul
+/locales/en.json                   @proxysoul
+/locales/README.md                 @proxysoul
+
 # License / governance docs.
 /LICENSE                     @proxysoul
 /COMMERCIAL_LICENSE.md       @proxysoul
