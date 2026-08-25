@@ -84,6 +84,7 @@ One-time supporters at the $10 / $50 tier. Thank you for tossing a coin in — e
 
 - [@nerminba](https://github.com/nerminba)
 - [@Liiro](https://github.com/Liiro)
+- [@window92](https://github.com/window92)
 
 ---
 
