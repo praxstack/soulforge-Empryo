@@ -178,6 +178,22 @@ function balanced(s: string): boolean {
 const src = (await Bun.file(SOURCE).json()) as Catalog;
 const srcKeys = new Set(Object.keys(src));
 
+// The catalog is plain text, not HTML. `nls()` returns a string that React
+// renders as a CHILD, and React decodes nothing there: an entity that reaches
+// en.json is an entity the user reads on screen ("Models &AMP; spend" once an
+// uppercase label gets hold of it — #184). The extractor decodes on the way in;
+// this is the gate that keeps a hand-edited or translator-supplied one out.
+{
+  const entity = /&(?:amp|lt|gt|quot|apos|#\d+);/;
+  const bad = Object.entries(src).filter(([, v]) => typeof v === "string" && entity.test(v));
+  if (bad.length > 0) {
+    console.log(`\n${SOURCE} carries ${bad.length} HTML entit${bad.length === 1 ? "y" : "ies"}:`);
+    for (const [k, v] of bad.slice(0, 20)) console.log(`  ${k}: ${v}`);
+    console.log("Re-run `bun run locales:extract` — it decodes them.");
+    process.exit(1);
+  }
+}
+
 /**
  * `--allow-stale`: a key the source catalog no longer has is reported but does
  * not fail the run. Upstream (the PR gate) never passes this — a translation
