@@ -1,14 +1,20 @@
 <div align="center">
 
-<img src="assets/empryo-mark.png" width="150" alt="Empryo" />
+<picture>
+  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="assets/empryo-mote-dark.svg" />
+  <source media="(prefers-reduced-motion: reduce)" srcset="assets/empryo-mote-light.svg" />
+  <source media="(prefers-color-scheme: dark)" srcset="assets/empryo-mote-dark-normal.gif" />
+  <source media="(prefers-color-scheme: light)" srcset="assets/empryo-mote-light-normal.gif" />
+  <img src="assets/empryo-mote-light-normal.gif" width="150" height="150" alt="Empryo" />
+</picture>
 
 # Empryo
 
 <sub>previously **SoulForge**</sub>
 
-**The AI coding agent that edits symbols, not strings.**
+**Code in context.**
 
-Empryo reads your repository as a living system: it sequences a **genome** — a live, ranked dependency graph of every symbol — and edits through the AST, never find-and-replace.
+AI coding with a map of your codebase.
 
 [Website](https://empryo.com) · [Download](https://empryo.com/download) · [Benchmarks](https://empryo.com/benchmarks) · [Changelog](https://empryo.com/changelog) · [Discussions](https://github.com/proxysoul/soulforge/discussions) · [Discord](https://discord.gg/fX4H7GYSMJ)
 
