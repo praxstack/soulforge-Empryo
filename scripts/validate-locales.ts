@@ -195,6 +195,54 @@ const srcKeys = new Set(Object.keys(src));
 }
 
 /**
+ * Shifted catalog — the failure behind #197.
+ *
+ * Extractor keys are `area.slug(text)`, so English text normally slugs back to
+ * its own key. When the `--apply` codemod walks a table of short labels
+ * (`{ off: "Off", none: "None", … }`) and lands each literal on its NEIGHBOUR's
+ * key, every value stays valid English and every key stays wired — nothing else
+ * in this gate notices. On screen the whole control renames itself: "medium"
+ * paints as "High", "flex" paints as "Prio", and the toast disagrees with the
+ * segment the user just clicked.
+ *
+ * The signature is a CHAIN: key A's text belongs to key B, and B's text belongs
+ * to someone else too. A lone mismatch is a hand-written key or reworded copy,
+ * so both ends must be wrong before this fails.
+ */
+{
+  const slug = (text: string): string =>
+    text
+      .toLowerCase()
+      .replace(/['’]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .split("-")
+      .filter(Boolean)
+      .slice(0, 6)
+      .join("-") || "text";
+  const suffix = (key: string): string => key.slice(key.lastIndexOf(".") + 1);
+  const areaOf = (key: string): string => key.slice(0, key.lastIndexOf("."));
+  /** The key this value's own text names, when that is not the key holding it. */
+  const misplaced = (key: string): string | null => {
+    const v = src[key];
+    if (typeof v !== "string" || key.startsWith("command.")) return null;
+    const want = slug(v);
+    if (want === suffix(key) || want === suffix(key).replace(/-\d+$/, "")) return null;
+    const owner = `${areaOf(key)}.${want}`;
+    return owner !== key && srcKeys.has(owner) ? owner : null;
+  };
+  const chained = Object.keys(src).filter((k) => {
+    const owner = misplaced(k);
+    return owner !== null && misplaced(owner) !== null;
+  });
+  if (chained.length > 0) {
+    console.log(`\n${SOURCE} has ${chained.length} key(s) carrying another key's text:`);
+    for (const k of chained.slice(0, 20)) console.log(`  ${k}: ${JSON.stringify(src[k])}`);
+    console.log("Each value belongs to the key its own slug names — the table is shifted.");
+    process.exit(1);
+  }
+}
+
+/**
  * `--allow-stale`: a key the source catalog no longer has is reported but does
  * not fail the run. Upstream (the PR gate) never passes this — a translation
  * must match the published en.json. The private tree passes it when embedding:
