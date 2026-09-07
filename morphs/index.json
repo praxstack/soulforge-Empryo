@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "ref": "proxysoul/Empryo/morphs/github-queue.json",
+      "name": "GitHub queue",
+      "description": "Open pull requests of one repository, live. Edit the two URLs to point at your repo.",
+      "kinds": [
+        "surface",
+        "status",
+        "pulse",
+        "lookup"
+      ],
+      "reach": [
+        "api.github.com"
+      ],
+      "official": true,
+      "requires": {
+        "empryo": ">=3.7.2",
+        "hosts": [
+          "desktop"
+        ]
+      },
+      "author": "proxysoul"
+    },
+    {
+      "ref": "proxysoul/Empryo/morphs/release-watch.json",
+      "name": "Release watch",
+      "description": "The latest releases of Empryo, and a chord to ask what changed.",
+      "kinds": [
+        "surface",
+        "status",
+        "pulse",
+        "reflex"
+      ],
+      "reach": [
+        "api.github.com"
+      ],
+      "official": true,
+      "requires": {
+        "empryo": ">=3.7.2",
+        "hosts": [
+          "desktop"
+        ]
+      },
+      "author": "proxysoul"
+    },
+    {
+      "ref": "proxysoul/Empryo/morphs/standup.json",
+      "name": "Standup notes",
+      "description": "Your notes/standup/*.md as a board, one card per day; the agent drafts today's from git.",
+      "kinds": [
+        "surface",
+        "status",
+        "pulse",
+        "instructions"
+      ],
+      "reach": [],
+      "official": true,
+      "requires": {
+        "empryo": ">=3.7.2",
+        "hosts": [
+          "desktop"
+        ]
+      },
+      "author": "proxysoul"
+    },
+    {
+      "ref": "proxysoul/Empryo/morphs/focus-guard.json",
+      "name": "Focus guard",
+      "description": "Agent layer only: rules and guards for a careful session. No panel.",
+      "kinds": [
+        "instructions",
+        "guard"
+      ],
+      "reach": [],
+      "official": true,
+      "requires": {
+        "empryo": ">=3.7.2"
+      },
+      "author": "proxysoul"
+    },
+    {
+      "ref": "proxysoul/Empryo/morphs/powershell-guard.json",
+      "name": "PowerShell guard",
+      "description": "Windows only: a second look before destructive PowerShell, and rules for a careful session on this machine.",
+      "kinds": [
+        "instructions",
+        "guard"
+      ],
+      "reach": [],
+      "official": true,
+      "requires": {
+        "empryo": ">=3.7.2",
+        "platforms": [
+          "windows"
+        ]
+      },
+      "author": "proxysoul"
+    }
+  ]
+}

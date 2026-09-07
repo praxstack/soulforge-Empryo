@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "name": "GitHub queue",
+  "description": "Open pull requests of one repository, live. Edit the two URLs to point at your repo.",
+  "requires": {
+    "empryo": ">=3.7.2",
+    "hosts": [
+      "desktop"
+    ]
+  },
+  "accent": "#8b5cf6",
+  "surface": {
+    "title": "Pull requests",
+    "place": "side",
+    "blocks": [
+      {
+        "kind": "stats",
+        "variant": "inline",
+        "items": [
+          {
+            "label": "open",
+            "value": "{{pulses.prs.count}}",
+            "tone": "accent"
+          }
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "label": "Review the oldest",
+        "prompt": "Review the oldest open pull request on my board and summarise its risk."
+      }
+    ]
+  },
+  "pulses": [
+    {
+      "id": "prs",
+      "url": "https://api.github.com/repos/proxysoul/Empryo/pulls?state=open&per_page=20",
+      "every": 120,
+      "map": {
+        "text": "#{{number}} {{title}}",
+        "detail": "{{user.login}}",
+        "badge": "{{draft | map:true=draft:false=ready}}",
+        "href": "{{html_url}}",
+        "prompt": "Review pull request #{{number}} ({{title}}) from my board."
+      }
+    }
+  ],
+  "status": {
+    "text": "{{pulses.prs.count | plural:PR}}",
+    "prompt": "What is waiting for review on my board?"
+  },
+  "lookups": [
+    {
+      "name": "pr",
+      "desc": "One pull request by number",
+      "url": "https://api.github.com/repos/proxysoul/Empryo/pulls/{{number}}",
+      "params": [
+        {
+          "name": "number",
+          "desc": "PR number"
+        }
+      ],
+      "pick": [
+        "title",
+        "state",
+        "user.login",
+        "additions",
+        "deletions",
+        "changed_files",
+        "mergeable_state"
+      ]
+    }
+  ],
+  "signature": {
+    "alg": "ed25519",
+    "key": "MCowBQYDK2VwAyEAy6SPFCi/cYx+XTFd5b7LjJnM5YUMNqsNGKU3fPCLU8Y=",
+    "sig": "J/NJHjVXHDwJVLP8JXuRtlyJrZhxHG1DOkeVmsdCURVU+N1K3sG41fl7kVHKh5AyRgWtqfilDEMcPIg8A4fvCA=="
+  }
+}

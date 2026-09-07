@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "name": "Focus guard",
+  "description": "Agent layer only: rules and guards for a careful session. No panel.",
+  "requires": {
+    "empryo": ">=3.7.2"
+  },
+  "instructions": "Prefer small, reviewable changes. Say which file a change touches before touching it. Never run destructive git commands without asking.",
+  "guards": [
+    {
+      "tool": "shell",
+      "match": "*rm -rf*",
+      "decision": "deny",
+      "reason": "No recursive deletes while Focus guard is on."
+    },
+    {
+      "tool": "git",
+      "match": "*--force*",
+      "decision": "ask",
+      "reason": "A force push rewrites shared history."
+    },
+    {
+      "tool": "edit_file",
+      "match": "**/.env*",
+      "decision": "ask",
+      "reason": "Secrets files need a second look."
+    }
+  ],
+  "signature": {
+    "alg": "ed25519",
+    "key": "MCowBQYDK2VwAyEAy6SPFCi/cYx+XTFd5b7LjJnM5YUMNqsNGKU3fPCLU8Y=",
+    "sig": "SI0BdSoLdpoxgWeugCsMk0/vEW7UFbo4JdogGY84OlJWN1JhHoQ0t3RrAUzBm4jznN+RlqBdz58fHr5gX/tHCA=="
+  }
+}

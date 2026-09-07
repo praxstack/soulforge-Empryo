@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "name": "PowerShell guard",
+  "description": "Windows only: a second look before destructive PowerShell, and rules for a careful session on this machine.",
+  "requires": {
+    "empryo": ">=3.7.2",
+    "platforms": [
+      "windows"
+    ]
+  },
+  "instructions": "This is a Windows machine. Use PowerShell syntax, not bash. Prefer Remove-Item on a named path over wildcards. Never edit the registry without saying which key.",
+  "guards": [
+    {
+      "tool": "shell",
+      "match": "*Remove-Item*-Recurse*",
+      "decision": "ask",
+      "reason": "Recursive delete on Windows."
+    },
+    {
+      "tool": "shell",
+      "match": "*Format-Volume*",
+      "decision": "deny",
+      "reason": "Formatting a volume is never part of a coding task."
+    },
+    {
+      "tool": "shell",
+      "match": "*Set-ItemProperty*HKLM:*",
+      "decision": "ask",
+      "reason": "A machine-wide registry write."
+    },
+    {
+      "tool": "shell",
+      "match": "*Stop-Computer*",
+      "decision": "deny",
+      "reason": "No shutdowns from an agent."
+    },
+    {
+      "tool": "shell",
+      "match": "*Restart-Computer*",
+      "decision": "deny",
+      "reason": "No reboots from an agent."
+    }
+  ],
+  "signature": {
+    "alg": "ed25519",
+    "key": "MCowBQYDK2VwAyEAy6SPFCi/cYx+XTFd5b7LjJnM5YUMNqsNGKU3fPCLU8Y=",
+    "sig": "N9+Rr3dfjQHasijyoR2lVcNQYcbKSKGKmLqr7DbUG3OYcbSaaFdFatl8Hz0pUW/ZTS0znYJeBsot4HWwVwO0BQ=="
+  }
+}

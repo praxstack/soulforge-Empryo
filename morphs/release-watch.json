@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "name": "Release watch",
+  "description": "The latest releases of Empryo, and a chord to ask what changed.",
+  "requires": {
+    "empryo": ">=3.7.2",
+    "hosts": [
+      "desktop"
+    ]
+  },
+  "accent": "#f472b6",
+  "surface": {
+    "title": "Latest releases",
+    "place": "sidebar",
+    "items": []
+  },
+  "pulses": [
+    {
+      "id": "rel",
+      "url": "https://api.github.com/repos/proxysoul/Empryo/releases?per_page=5",
+      "every": 600,
+      "map": {
+        "text": "{{tag_name}}",
+        "detail": "{{published_at | date}}",
+        "href": "{{html_url}}"
+      }
+    }
+  ],
+  "status": {
+    "text": "{{pulses.rel.rows.0.text | default:—}}",
+    "href": "https://github.com/proxysoul/Empryo/releases"
+  },
+  "reflexes": [
+    {
+      "keys": "mod+shift+r",
+      "prompt": "Summarise what changed in the latest Empryo release."
+    }
+  ],
+  "signature": {
+    "alg": "ed25519",
+    "key": "MCowBQYDK2VwAyEAy6SPFCi/cYx+XTFd5b7LjJnM5YUMNqsNGKU3fPCLU8Y=",
+    "sig": "vZ7876H4eEsxAoS/0aCgmAezeXXric4UFmbPtXGIi6IjgSdI2MTqPlIcQSLnn38r8YMxqjixcRQbr2+87vSpAQ=="
+  }
+}

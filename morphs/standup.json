@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "name": "Standup notes",
+  "description": "Your notes/standup/*.md as a board, one card per day; the agent drafts today's from git.",
+  "requires": {
+    "empryo": ">=3.7.2",
+    "hosts": [
+      "desktop"
+    ]
+  },
+  "accent": "#5eead4",
+  "surface": {
+    "title": "Standup",
+    "place": "side",
+    "blocks": [
+      {
+        "kind": "stats",
+        "variant": "inline",
+        "items": [
+          {
+            "label": "days",
+            "value": "{{pulses.days.count}}",
+            "tone": "accent"
+          }
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "label": "Draft today's",
+        "prompt": "Read the last note in notes/standup/, look at git log since then, and write notes/standup/<today>.md with the same headings: done, next, blocked."
+      }
+    ]
+  },
+  "pulses": [
+    {
+      "id": "days",
+      "url": "files://notes/standup/*.md",
+      "every": 30,
+      "sort": "-name",
+      "limit": 14,
+      "map": {
+        "text": "{{title}}",
+        "detail": "{{status | default:open}}",
+        "prompt": "Summarise the standup note {{title}} and list its blockers."
+      }
+    }
+  ],
+  "status": {
+    "text": "{{pulses.days.count | plural:note}}",
+    "prompt": "What did I say I would do next, according to my standup notes?"
+  },
+  "instructions": "Standup notes live in notes/standup/, one markdown file per day named YYYY-MM-DD.md, with a `status:` line at the top and the headings done, next, blocked.",
+  "signature": {
+    "alg": "ed25519",
+    "key": "MCowBQYDK2VwAyEAy6SPFCi/cYx+XTFd5b7LjJnM5YUMNqsNGKU3fPCLU8Y=",
+    "sig": "wU2s2src2uTMcusO8jcRwZ0AAptQ9lDrNrIHvwUBXZSdSkNmy1qz3xQyTJM5YMeijzkAjvMjsCqP0a29p3EQBA=="
+  }
+}
